@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Build one target bundle of pinned Unica tool binaries for release packaging."""
+"""Build one target bundle of Unica tool binaries from third-party/tools.lock.json."""
 
 from __future__ import annotations
 
@@ -17,51 +17,13 @@ import zipfile
 from pathlib import Path
 
 
-BSL_VERSION = "0.1.144"
-BSL_TAG = "v0.1.144"
-BSL_COMMIT = "aff7de0f7b6e2db73bba5c16ca95b84971bc1002"
-BSL_REPO = "https://github.com/itrous/bsl-analyzer"
-
-V8_RUNNER_VERSION = "0.3.0"
-V8_RUNNER_TAG = "v0.3.0"
-V8_RUNNER_COMMIT = "e41c9dba5552851036fd6087f0b4a72ede01cb81"
-V8_RUNNER_REPO = "https://github.com/alkoleft/v8-runner-rust"
-
-RLM_VERSION = "1.9.4"
-RLM_TAG = "v1.9.4"
-RLM_COMMIT = "0af7461caf9547bed14bf742b66d71deb57b86e8"
-RLM_REPO = "https://github.com/Dach-Coin/rlm-tools-bsl"
-
-
-TARGETS = {
-    "darwin-arm64": {
-        "targetTriple": "aarch64-apple-darwin",
-        "hostSystem": "Darwin",
-        "hostMachine": {"arm64", "aarch64"},
-        "exe": "",
-        "bslAsset": "bsl-analyzer-app-darwin-arm64",
-        "v8Asset": "v8-runner-macos-aarch64.tar.gz",
-        "v8Binary": "v8-runner",
-    },
-    "linux-x64": {
-        "targetTriple": "x86_64-unknown-linux-gnu",
-        "hostSystem": "Linux",
-        "hostMachine": {"x86_64", "amd64"},
-        "exe": "",
-        "bslAsset": "bsl-analyzer-app-linux-amd64",
-        "v8Asset": "v8-runner-linux-x86_64-musl.tar.gz",
-        "v8Binary": "v8-runner",
-    },
-    "win-x64": {
-        "targetTriple": "x86_64-pc-windows-msvc",
-        "hostSystem": "Windows",
-        "hostMachine": {"amd64", "x86_64"},
-        "exe": ".exe",
-        "bslAsset": "bsl-analyzer-app-windows-amd64.exe",
-        "v8Asset": "v8-runner-windows-x86_64.zip",
-        "v8Binary": "v8-runner.exe",
-    },
-}
+def load_lock(path: Path) -> dict:
+    lock = json.loads(path.read_text(encoding="utf-8"))
+    if lock.get("schemaVersion") != 1:
+        raise SystemExit(f"unsupported tools lock schemaVersion in {path}: {lock.get('schemaVersion')}")
+    if not lock.get("targets") or not lock.get("tools"):
+        raise SystemExit(f"invalid tools lock: {path}")
+    return lock
 
 
 def run(args: list[str], *, cwd: Path | None = None) -> None:
@@ -84,12 +46,13 @@ def download(url: str, dest: Path) -> None:
         shutil.copyfileobj(response, out)
 
 
-def assert_host(target: str) -> None:
-    cfg = TARGETS[target]
+def assert_host(target: str, targets: dict) -> None:
+    cfg = targets[target]
     system = platform.system()
     machine = platform.machine().lower()
-    if system != cfg["hostSystem"] or machine not in cfg["hostMachine"]:
-        expected = f"{cfg['hostSystem']} {sorted(cfg['hostMachine'])}"
+    supported_machines = {str(item).lower() for item in cfg["hostMachines"]}
+    if system != cfg["hostSystem"] or machine not in supported_machines:
+        expected = f"{cfg['hostSystem']} {sorted(supported_machines)}"
         actual = f"{system} {machine}"
         raise SystemExit(f"target {target} must be built on {expected}; current runner is {actual}")
 
@@ -111,46 +74,121 @@ def extract_v8_runner(archive: Path, binary_name: str, dest: Path) -> None:
     shutil.copy2(matches[0], dest)
 
 
-def build_rlm_tools(source_dir: Path, work_dir: Path, out_dir: Path, exe: str) -> None:
-    if not source_dir.exists():
-        raise SystemExit(f"rlm-tools-bsl source directory not found: {source_dir}")
+def verify_git_commit(source_dir: Path, expected_commit: str) -> None:
+    if not expected_commit:
+        return
 
-    run([sys.executable, "-m", "pip", "install", "--upgrade", "pip", "pyinstaller"])
-    run([sys.executable, "-m", "pip", "install", str(source_dir)])
-
-    for command_name in ("rlm-tools-bsl", "rlm-bsl-index"):
-        script = shutil.which(command_name)
-        if not script:
-            raise SystemExit(f"installed entrypoint not found on PATH: {command_name}")
-
-        build_root = work_dir / command_name
-        shutil.rmtree(build_root, ignore_errors=True)
-        build_root.mkdir(parents=True)
-        run(
-            [
-                sys.executable,
-                "-m",
-                "PyInstaller",
-                "--onefile",
-                "--clean",
-                "--noconfirm",
-                "--name",
-                command_name,
-                "--collect-all",
-                "rlm_tools_bsl",
-                script,
-            ],
-            cwd=build_root,
+    try:
+        result = subprocess.run(
+            ["git", "-C", str(source_dir), "rev-parse", "HEAD"],
+            check=True,
+            text=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
         )
-        produced = build_root / "dist" / f"{command_name}{exe}"
-        if not produced.exists():
-            raise SystemExit(f"PyInstaller output not found: {produced}")
-        shutil.copy2(produced, out_dir / f"{command_name}{exe}")
+    except (FileNotFoundError, subprocess.CalledProcessError):
+        return
+
+    actual = result.stdout.strip()
+    if actual != expected_commit:
+        raise SystemExit(f"{source_dir} is at {actual}, expected {expected_commit}")
+
+
+def checkout_source(tool: dict, work_dir: Path) -> Path:
+    source_dir = work_dir / "source" / tool["name"]
+    shutil.rmtree(source_dir, ignore_errors=True)
+    source_dir.parent.mkdir(parents=True, exist_ok=True)
+    run(
+        [
+            "git",
+            "clone",
+            "--depth",
+            "1",
+            "--branch",
+            tool["sourceTag"],
+            tool["repository"],
+            str(source_dir),
+        ]
+    )
+    verify_git_commit(source_dir, tool["sourceCommit"])
+    return source_dir
+
+
+def resolve_source(tool: dict, explicit_source: Path | None, work_dir: Path) -> Path:
+    if explicit_source is not None:
+        if not explicit_source.exists():
+            raise SystemExit(f"{tool['name']} source directory not found: {explicit_source}")
+        verify_git_commit(explicit_source, tool["sourceCommit"])
+        return explicit_source
+
+    return checkout_source(tool, work_dir)
+
+
+def create_python_env(source_dir: Path, work_dir: Path) -> tuple[Path, Path]:
+    if not source_dir.exists():
+        raise SystemExit(f"python tool source directory not found: {source_dir}")
+
+    venv_dir = (work_dir / "python-env").resolve()
+    if os.name == "nt":
+        venv_python = venv_dir / "Scripts" / "python.exe"
+        venv_bin = venv_dir / "Scripts"
+    else:
+        venv_python = venv_dir / "bin" / "python"
+        venv_bin = venv_dir / "bin"
+
+    if not venv_python.exists():
+        run([sys.executable, "-m", "venv", str(venv_dir)])
+
+    run([str(venv_python), "-m", "pip", "install", "--upgrade", "pip", "pyinstaller"])
+    run([str(venv_python), "-m", "pip", "install", str(source_dir)])
+    return venv_python, venv_bin
+
+
+def build_python_entrypoint(
+    tool: dict,
+    work_dir: Path,
+    out_dir: Path,
+    exe: str,
+    venv_python: Path,
+    venv_bin: Path,
+) -> Path:
+    command_name = tool["entrypoint"]
+    script = venv_bin / f"{command_name}{'.exe' if os.name == 'nt' else ''}"
+    if not script.exists():
+        raise SystemExit(f"installed entrypoint not found on PATH: {command_name}")
+
+    build_root = work_dir / command_name
+    shutil.rmtree(build_root, ignore_errors=True)
+    build_root.mkdir(parents=True)
+    run(
+        [
+            str(venv_python),
+            "-m",
+            "PyInstaller",
+            "--onefile",
+            "--clean",
+            "--noconfirm",
+            "--name",
+            command_name,
+            "--collect-all",
+            "rlm_tools_bsl",
+            str(script),
+        ],
+        cwd=build_root,
+    )
+    produced = build_root / "dist" / f"{command_name}{exe}"
+    if not produced.exists():
+        raise SystemExit(f"PyInstaller output not found: {produced}")
+
+    dest = out_dir / f"{tool['binaryName']}{exe}"
+    shutil.copy2(produced, dest)
+    return dest
 
 
 def tool_entry(
     *,
     target: str,
+    target_triple: str,
     name: str,
     version: str,
     repository: str,
@@ -169,22 +207,31 @@ def tool_entry(
         "sourceCommit": commit,
         "license": license_id,
         "target": target,
-        "targetTriple": TARGETS[target]["targetTriple"],
+        "targetTriple": target_triple,
         "binaryPath": relative_binary,
         "sha256": sha256(binary),
     }
 
 
 def main() -> None:
+    if sys.version_info < (3, 10):
+        raise SystemExit("build-unica-tools.py requires Python >= 3.10 because rlm-tools-bsl requires >= 3.10")
+
     parser = argparse.ArgumentParser()
-    parser.add_argument("--target", choices=sorted(TARGETS), required=True)
-    parser.add_argument("--rlm-source", type=Path, required=True)
+    parser.add_argument("--target", required=True)
+    parser.add_argument("--lock-file", type=Path, default=Path("plugins/unica/third-party/tools.lock.json"))
+    parser.add_argument("--rlm-source", type=Path)
     parser.add_argument("--out-dir", type=Path, required=True)
     parser.add_argument("--work-dir", type=Path, default=Path(".build/unica-tools"))
     args = parser.parse_args()
 
-    assert_host(args.target)
-    cfg = TARGETS[args.target]
+    lock = load_lock(args.lock_file)
+    targets = lock["targets"]
+    if args.target not in targets:
+        raise SystemExit(f"unknown target {args.target}; expected one of {', '.join(sorted(targets))}")
+
+    assert_host(args.target, targets)
+    cfg = targets[args.target]
     exe = cfg["exe"]
 
     target_bin_dir = args.out_dir / "bin" / args.target
@@ -192,67 +239,67 @@ def main() -> None:
     target_bin_dir.mkdir(parents=True, exist_ok=True)
     downloads_dir.mkdir(parents=True, exist_ok=True)
 
-    bsl_url = f"{BSL_REPO}/releases/download/{BSL_TAG}/{cfg['bslAsset']}"
-    bsl_dest = target_bin_dir / f"bsl-analyzer{exe}"
-    download(bsl_url, downloads_dir / cfg["bslAsset"])
-    shutil.copy2(downloads_dir / cfg["bslAsset"], bsl_dest)
+    built_paths: dict[str, Path] = {}
+    python_env_cache: dict[Path, tuple[Path, Path]] = {}
+    source_cache: dict[tuple[str, str, str], Path] = {}
 
-    v8_url = f"{V8_RUNNER_REPO}/releases/download/{V8_RUNNER_TAG}/{cfg['v8Asset']}"
-    v8_dest = target_bin_dir / f"v8-runner{exe}"
-    download(v8_url, downloads_dir / cfg["v8Asset"])
-    extract_v8_runner(downloads_dir / cfg["v8Asset"], cfg["v8Binary"], v8_dest)
+    for tool in lock["tools"]:
+        asset = tool["assets"].get(args.target)
+        if not asset:
+            raise SystemExit(f"{tool['name']} has no asset for target {args.target}")
 
-    build_rlm_tools(args.rlm_source, args.work_dir / args.target / "rlm-build", target_bin_dir, exe)
+        strategy = tool["assetStrategy"]
+        dest = target_bin_dir / f"{tool['binaryName']}{exe}"
+
+        if strategy == "direct-release-asset":
+            url = f"{tool['repository']}/releases/download/{tool['sourceTag']}/{asset['assetName']}"
+            downloaded = downloads_dir / asset["assetName"]
+            download(url, downloaded)
+            shutil.copy2(downloaded, dest)
+        elif strategy == "archive-release-asset":
+            url = f"{tool['repository']}/releases/download/{tool['sourceTag']}/{asset['assetName']}"
+            downloaded = downloads_dir / asset["assetName"]
+            download(url, downloaded)
+            extract_v8_runner(downloaded, asset["archiveBinary"], dest)
+        elif strategy == "pyinstaller-entrypoint":
+            key = (tool["repository"], tool["sourceTag"], tool["sourceCommit"])
+            if key not in source_cache:
+                source_cache[key] = resolve_source(tool, args.rlm_source, args.work_dir / args.target)
+            source_dir = source_cache[key]
+            if source_dir not in python_env_cache:
+                python_env_cache[source_dir] = create_python_env(source_dir, args.work_dir / args.target)
+            venv_python, venv_bin = python_env_cache[source_dir]
+            dest = build_python_entrypoint(
+                tool,
+                args.work_dir / args.target / "pyinstaller",
+                target_bin_dir,
+                exe,
+                venv_python,
+                venv_bin,
+            )
+        else:
+            raise SystemExit(f"unsupported assetStrategy for {tool['name']}: {strategy}")
+
+        built_paths[tool["name"]] = dest
 
     for path in target_bin_dir.iterdir():
-        if path.is_file() and os.name != "nt":
+        if path.is_file() and not path.name.endswith(".exe"):
             path.chmod(path.stat().st_mode | 0o755)
 
     tools = [
         tool_entry(
             target=args.target,
-            name="bsl-analyzer",
-            version=BSL_VERSION,
-            repository=BSL_REPO,
-            tag=BSL_TAG,
-            commit=BSL_COMMIT,
-            license_id="LGPL-3.0-or-later",
-            binary=bsl_dest,
-            relative_binary=f"bin/{args.target}/bsl-analyzer{exe}",
-        ),
-        tool_entry(
-            target=args.target,
-            name="v8-runner",
-            version=V8_RUNNER_VERSION,
-            repository=V8_RUNNER_REPO,
-            tag=V8_RUNNER_TAG,
-            commit=V8_RUNNER_COMMIT,
-            license_id="NOASSERTION",
-            binary=v8_dest,
-            relative_binary=f"bin/{args.target}/v8-runner{exe}",
-        ),
-        tool_entry(
-            target=args.target,
-            name="rlm-tools-bsl",
-            version=RLM_VERSION,
-            repository=RLM_REPO,
-            tag=RLM_TAG,
-            commit=RLM_COMMIT,
-            license_id="MIT",
-            binary=target_bin_dir / f"rlm-tools-bsl{exe}",
-            relative_binary=f"bin/{args.target}/rlm-tools-bsl{exe}",
-        ),
-        tool_entry(
-            target=args.target,
-            name="rlm-bsl-index",
-            version=RLM_VERSION,
-            repository=RLM_REPO,
-            tag=RLM_TAG,
-            commit=RLM_COMMIT,
-            license_id="MIT",
-            binary=target_bin_dir / f"rlm-bsl-index{exe}",
-            relative_binary=f"bin/{args.target}/rlm-bsl-index{exe}",
-        ),
+            target_triple=cfg["targetTriple"],
+            name=tool["name"],
+            version=tool["version"],
+            repository=tool["repository"],
+            tag=tool["sourceTag"],
+            commit=tool["sourceCommit"],
+            license_id=tool["license"],
+            binary=built_paths[tool["name"]],
+            relative_binary=f"bin/{args.target}/{built_paths[tool['name']].name}",
+        )
+        for tool in lock["tools"]
     ]
 
     (args.out_dir / "tools.json").write_text(
@@ -260,6 +307,7 @@ def main() -> None:
             {
                 "target": args.target,
                 "targetTriple": cfg["targetTriple"],
+                "lockFile": str(args.lock_file),
                 "tools": tools,
             },
             ensure_ascii=False,

@@ -1,0 +1,123 @@
+{
+  "schemaVersion": 1,
+  "targets": {
+    "darwin-arm64": {
+      "targetTriple": "aarch64-apple-darwin",
+      "hostSystem": "Darwin",
+      "hostMachines": [
+        "aarch64",
+        "arm64"
+      ],
+      "exe": ""
+    },
+    "linux-x64": {
+      "targetTriple": "x86_64-unknown-linux-gnu",
+      "hostSystem": "Linux",
+      "hostMachines": [
+        "amd64",
+        "x86_64"
+      ],
+      "exe": ""
+    },
+    "win-x64": {
+      "targetTriple": "x86_64-pc-windows-msvc",
+      "hostSystem": "Windows",
+      "hostMachines": [
+        "amd64",
+        "x86_64"
+      ],
+      "exe": ".exe"
+    }
+  },
+  "tools": [
+    {
+      "name": "bsl-analyzer",
+      "version": "0.1.144",
+      "repository": "https://github.com/itrous/bsl-analyzer",
+      "sourceTag": "v0.1.144",
+      "sourceCommit": "aff7de0f7b6e2db73bba5c16ca95b84971bc1002",
+      "license": "LGPL-3.0-or-later",
+      "assetStrategy": "direct-release-asset",
+      "binaryName": "bsl-analyzer",
+      "assets": {
+        "darwin-arm64": {
+          "assetName": "bsl-analyzer-app-darwin-arm64"
+        },
+        "linux-x64": {
+          "assetName": "bsl-analyzer-app-linux-amd64"
+        },
+        "win-x64": {
+          "assetName": "bsl-analyzer-app-windows-amd64.exe"
+        }
+      }
+    },
+    {
+      "name": "v8-runner",
+      "version": "0.3.0",
+      "repository": "https://github.com/alkoleft/v8-runner-rust",
+      "sourceTag": "v0.3.0",
+      "sourceCommit": "e41c9dba5552851036fd6087f0b4a72ede01cb81",
+      "license": "NOASSERTION",
+      "assetStrategy": "archive-release-asset",
+      "binaryName": "v8-runner",
+      "assets": {
+        "darwin-arm64": {
+          "assetName": "v8-runner-macos-aarch64.tar.gz",
+          "archiveBinary": "v8-runner"
+        },
+        "linux-x64": {
+          "assetName": "v8-runner-linux-x86_64-musl.tar.gz",
+          "archiveBinary": "v8-runner"
+        },
+        "win-x64": {
+          "assetName": "v8-runner-windows-x86_64.zip",
+          "archiveBinary": "v8-runner.exe"
+        }
+      }
+    },
+    {
+      "name": "rlm-tools-bsl",
+      "version": "1.9.4",
+      "repository": "https://github.com/Dach-Coin/rlm-tools-bsl",
+      "sourceTag": "v1.9.4",
+      "sourceCommit": "0af7461caf9547bed14bf742b66d71deb57b86e8",
+      "license": "MIT",
+      "assetStrategy": "pyinstaller-entrypoint",
+      "binaryName": "rlm-tools-bsl",
+      "entrypoint": "rlm-tools-bsl",
+      "assets": {
+        "darwin-arm64": {
+          "assetName": "rlm-tools-bsl-darwin-arm64"
+        },
+        "linux-x64": {
+          "assetName": "rlm-tools-bsl-linux-x64"
+        },
+        "win-x64": {
+          "assetName": "rlm-tools-bsl-win-x64.exe"
+        }
+      }
+    },
+    {
+      "name": "rlm-bsl-index",
+      "version": "1.9.4",
+      "repository": "https://github.com/Dach-Coin/rlm-tools-bsl",
+      "sourceTag": "v1.9.4",
+      "sourceCommit": "0af7461caf9547bed14bf742b66d71deb57b86e8",
+      "license": "MIT",
+      "assetStrategy": "pyinstaller-entrypoint",
+      "binaryName": "rlm-bsl-index",
+      "entrypoint": "rlm-bsl-index",
+      "assets": {
+        "darwin-arm64": {
+          "assetName": "rlm-bsl-index-darwin-arm64"
+        },
+        "linux-x64": {
+          "assetName": "rlm-bsl-index-linux-x64"
+        },
+        "win-x64": {
+          "assetName": "rlm-bsl-index-win-x64.exe"
+        }
+      }
+    }
+  ]
+}

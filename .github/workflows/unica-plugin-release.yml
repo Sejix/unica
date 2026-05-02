@@ -33,12 +33,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: actions/checkout@v4
-        with:
-          repository: Dach-Coin/rlm-tools-bsl
-          ref: v1.9.4
-          path: .build/rlm-tools-bsl
-
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
@@ -47,7 +41,7 @@ jobs:
         run: >
           python scripts/ci/build-unica-tools.py
           --target "${{ matrix.target }}"
-          --rlm-source ".build/rlm-tools-bsl"
+          --lock-file "plugins/unica/third-party/tools.lock.json"
           --out-dir ".build/tool-bundles/${{ matrix.target }}"
           --work-dir ".build/tool-work/${{ matrix.target }}"
 
@@ -75,6 +69,7 @@ jobs:
           python scripts/ci/package-unica-plugin.py
           --repo-root .
           --tools-root .build/tool-artifacts
+          --lock-file plugins/unica/third-party/tools.lock.json
           --out-dir dist
 
       - uses: actions/upload-artifact@v4

@@ -6,7 +6,7 @@
         "-lc",
         "for p in ./plugins/unica/scripts/run-bsl-reference.sh ./scripts/run-bsl-reference.sh; do if [ -x \"$p\" ]; then exec \"$p\"; fi; done; echo 'Unica bsl-analyzer reference launcher not found' >&2; exit 127"
       ],
-      "note": "bsl-analyzer reference profile: platform syntax/help/search tools. Uses the pinned macOS arm64 binary packaged by Unica."
+      "note": "bsl-analyzer reference profile: platform syntax/help/search tools. Local stdio MCP runtime is shell-first on macOS/Linux and uses the pinned binary from the generated Unica package manifest."
     },
     "unica-bsl-workspace": {
       "command": "bash",
@@ -14,7 +14,7 @@
         "-lc",
         "for p in ./plugins/unica/scripts/run-bsl-workspace.sh ./scripts/run-bsl-workspace.sh; do if [ -x \"$p\" ]; then exec \"$p\"; fi; done; echo 'Unica bsl-analyzer workspace launcher not found' >&2; exit 127"
       ],
-      "note": "bsl-analyzer workspace profile: local 1C code, metadata, SDBL validation, and optional live tools. Set UNICA_BSL_SOURCE_DIR to override the default current directory."
+      "note": "bsl-analyzer workspace profile: local 1C code, metadata, SDBL validation, and optional live tools. Local stdio MCP runtime is shell-first on macOS/Linux. Set UNICA_BSL_SOURCE_DIR to override the default current directory."
     },
     "unica-v8-runner": {
       "command": "bash",
@@ -22,7 +22,7 @@
         "-lc",
         "for p in ./plugins/unica/scripts/run-v8-runner-mcp.sh ./scripts/run-v8-runner-mcp.sh; do if [ -x \"$p\" ]; then exec \"$p\"; fi; done; echo 'Unica v8-runner launcher not found' >&2; exit 127"
       ],
-      "note": "v8-runner stdio MCP server. Uses the pinned macOS arm64 binary packaged by Unica."
+      "note": "v8-runner stdio MCP server. Local stdio MCP runtime is shell-first on macOS/Linux and uses the pinned binary from the generated Unica package manifest."
     },
     "unica-rlm-tools-bsl": {
       "command": "bash",
@@ -30,7 +30,7 @@
         "-lc",
         "for p in ./plugins/unica/scripts/run-rlm-tools-bsl.sh ./scripts/run-rlm-tools-bsl.sh; do if [ -x \"$p\" ]; then exec \"$p\"; fi; done; echo 'Unica rlm-tools-bsl launcher not found' >&2; exit 127"
       ],
-      "note": "rlm-tools-bsl stdio MCP server for token-efficient 1C BSL repository exploration. Uses the pinned macOS arm64 executable packaged by Unica."
+      "note": "rlm-tools-bsl stdio MCP server for token-efficient 1C BSL repository exploration. Local stdio MCP runtime is shell-first on macOS/Linux and uses the pinned executable from the generated Unica package manifest."
     },
     "unica-v8std": {
       "type": "http",

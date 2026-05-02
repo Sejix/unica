@@ -1,4 +1,12 @@
 research/
 its/
 .build/
+dist/
 .DS_Store
+__pycache__/
+*.pyc
+*.pyo
+*.spec
+plugins/unica/bin/darwin-arm64/
+plugins/unica/bin/linux-x64/
+plugins/unica/bin/win-x64/

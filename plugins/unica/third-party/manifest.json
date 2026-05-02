@@ -1,53 +1,9 @@
 {
-  "schemaVersion": 1,
-  "targetTriple": "aarch64-apple-darwin",
-  "builtAt": "2026-05-02",
-  "tools": [
-    {
-      "name": "bsl-analyzer",
-      "version": "0.1.144",
-      "repository": "https://github.com/itrous/bsl-analyzer",
-      "upstreamUrl": "https://github.com/itrous/bsl-analyzer/releases/tag/v0.1.144",
-      "sourceTag": "v0.1.144",
-      "sourceCommit": "aff7de0f7b6e2db73bba5c16ca95b84971bc1002",
-      "license": "LGPL-3.0-or-later",
-      "binaryPath": "bin/darwin-arm64/bsl-analyzer",
-      "sha256": "efe851deb313edcfba53e367e20923bd6c5e84430b0d654a02ce6d0524ce42fb"
-    },
-    {
-      "name": "v8-runner",
-      "version": "0.3.0",
-      "repository": "https://github.com/alkoleft/v8-runner-rust",
-      "upstreamUrl": "https://github.com/alkoleft/v8-runner-rust/releases/tag/v0.3.0",
-      "sourceTag": "v0.3.0",
-      "sourceCommit": "e41c9dba5552851036fd6087f0b4a72ede01cb81",
-      "license": "NOASSERTION",
-      "binaryPath": "bin/darwin-arm64/v8-runner",
-      "sha256": "f753888b21a30d5ff78030fa4ba12ac894798b9d727c7bcf2b908e43349bf94d"
-    },
-    {
-      "name": "rlm-tools-bsl",
-      "version": "1.9.4",
-      "repository": "https://github.com/Dach-Coin/rlm-tools-bsl",
-      "upstreamUrl": "https://github.com/Dach-Coin/rlm-tools-bsl/releases/tag/v1.9.4",
-      "sourceTag": "v1.9.4",
-      "sourceCommit": "0af7461caf9547bed14bf742b66d71deb57b86e8",
-      "license": "MIT",
-      "binaryPath": "bin/darwin-arm64/rlm-tools-bsl",
-      "sha256": "a71e5abed1b6ef55740dc0a80928086410c4401132daaa99c6f283135b63f1f6"
-    },
-    {
-      "name": "rlm-bsl-index",
-      "version": "1.9.4",
-      "repository": "https://github.com/Dach-Coin/rlm-tools-bsl",
-      "upstreamUrl": "https://github.com/Dach-Coin/rlm-tools-bsl/releases/tag/v1.9.4",
-      "sourceTag": "v1.9.4",
-      "sourceCommit": "0af7461caf9547bed14bf742b66d71deb57b86e8",
-      "license": "MIT",
-      "binaryPath": "bin/darwin-arm64/rlm-bsl-index",
-      "sha256": "4b6e0efb4eba630b2cc7c28436e10d6ccf3e97dcffaeb6696225e547add2859c"
-    }
-  ],
+  "schemaVersion": 2,
+  "generatedBy": "scripts/ci/package-unica-plugin.py",
+  "sourceManifest": true,
+  "note": "This checked-in source manifest is a placeholder. Official marketplace archives overwrite it with a generated multi-target manifest derived from third-party/tools.lock.json and CI-built tool bundles.",
+  "tools": [],
   "remoteMcpServers": [
     {
       "name": "unica-v8std",

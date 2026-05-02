@@ -1,28 +1,25 @@
 # Third-Party Notices
 
-Unica V1 commits third-party macOS arm64 binaries so a plugin version maps to a pinned 1C development toolset.
+Pinned third-party tool versions, repositories, commits, licenses, and target
+asset names are declared once in `third-party/tools.lock.json`.
+
+Official marketplace archives generate `third-party/manifest.json` from that
+lock file and CI-built binary bundles. The repository source tree does not
+commit generated tool binaries.
 
 ## bsl-analyzer
 
-- Repository: https://github.com/itrous/bsl-analyzer
-- Version: 0.1.144
-- Tag: v0.1.144
-- License: LGPL-3.0-or-later
 - Included notices: `third-party/licenses/bsl-analyzer/`
 
 ## v8-runner
 
-- Repository: https://github.com/alkoleft/v8-runner-rust
-- Version: 0.3.0
-- Tag: v0.3.0
-- License: NOASSERTION in the inspected public tag.
+- See `third-party/tools.lock.json` for the pinned repository, version, tag,
+  commit, license field, and target assets.
 
 ## rlm-tools-bsl
 
-- Repository: https://github.com/Dach-Coin/rlm-tools-bsl
-- Version: 1.9.4
-- Tag: v1.9.4
-- License: MIT
 - Included notices: `third-party/licenses/rlm-tools-bsl/`
 
-When updating tool versions, update this file and `third-party/manifest.json` in the same change.
+When updating tool versions, update `third-party/tools.lock.json`, bump the
+plugin version, and let the release workflow regenerate the manifest and
+archives.
