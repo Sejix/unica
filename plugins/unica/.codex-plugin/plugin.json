@@ -1,6 +1,6 @@
 {
   "name": "unica",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Pinned 1C:Enterprise development tooling for Codex.",
   "author": {
     "name": "Ingvar Consulting, LLC",
@@ -15,14 +15,16 @@
     "bsl",
     "mcp",
     "codex",
-    "v8-runner"
+    "v8-runner",
+    "rlm",
+    "code-analysis"
   ],
   "skills": "./skills/",
   "mcpServers": "./.mcp.json",
   "interface": {
     "displayName": "Unica",
     "shortDescription": "Pinned 1C developer tools and MCP servers for Codex",
-    "longDescription": "Unica packages pinned macOS arm64 tools for 1C:Enterprise development: bsl-analyzer, v8-runner, and the public v8std MCP endpoint. Tool binaries are launched through checksum-verifying wrappers so a plugin version maps to a known toolset.",
+    "longDescription": "Unica packages pinned macOS arm64 tools for 1C:Enterprise development: bsl-analyzer, v8-runner, rlm-tools-bsl, and the public v8std MCP endpoint. Tool binaries are launched through checksum-verifying wrappers so a plugin version maps to a known toolset.",
     "developerName": "Ingvar Consulting, LLC",
     "category": "Coding",
     "capabilities": [
@@ -36,6 +38,7 @@
     "defaultPrompt": [
       "Set up 1C development tools for this repo",
       "Analyze this 1C project with bsl-analyzer",
+      "Explore this large 1C codebase with rlm-tools-bsl",
       "Run v8-runner checks for this 1C project"
     ],
     "brandColor": "#2563EB",

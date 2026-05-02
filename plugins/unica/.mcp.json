@@ -24,6 +24,14 @@
       ],
       "note": "v8-runner stdio MCP server. Uses the pinned macOS arm64 binary packaged by Unica."
     },
+    "unica-rlm-tools-bsl": {
+      "command": "bash",
+      "args": [
+        "-lc",
+        "for p in ./plugins/unica/scripts/run-rlm-tools-bsl.sh ./scripts/run-rlm-tools-bsl.sh; do if [ -x \"$p\" ]; then exec \"$p\"; fi; done; echo 'Unica rlm-tools-bsl launcher not found' >&2; exit 127"
+      ],
+      "note": "rlm-tools-bsl stdio MCP server for token-efficient 1C BSL repository exploration. Uses the pinned macOS arm64 executable packaged by Unica."
+    },
     "unica-v8std": {
       "type": "http",
       "url": "https://ai.v8std.ru/mcp",

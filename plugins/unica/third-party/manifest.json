@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "targetTriple": "aarch64-apple-darwin",
-  "builtAt": "2026-05-01",
+  "builtAt": "2026-05-02",
   "tools": [
     {
       "name": "bsl-analyzer",
@@ -24,6 +24,28 @@
       "license": "NOASSERTION",
       "binaryPath": "bin/darwin-arm64/v8-runner",
       "sha256": "f753888b21a30d5ff78030fa4ba12ac894798b9d727c7bcf2b908e43349bf94d"
+    },
+    {
+      "name": "rlm-tools-bsl",
+      "version": "1.9.4",
+      "repository": "https://github.com/Dach-Coin/rlm-tools-bsl",
+      "upstreamUrl": "https://github.com/Dach-Coin/rlm-tools-bsl/releases/tag/v1.9.4",
+      "sourceTag": "v1.9.4",
+      "sourceCommit": "0af7461caf9547bed14bf742b66d71deb57b86e8",
+      "license": "MIT",
+      "binaryPath": "bin/darwin-arm64/rlm-tools-bsl",
+      "sha256": "a71e5abed1b6ef55740dc0a80928086410c4401132daaa99c6f283135b63f1f6"
+    },
+    {
+      "name": "rlm-bsl-index",
+      "version": "1.9.4",
+      "repository": "https://github.com/Dach-Coin/rlm-tools-bsl",
+      "upstreamUrl": "https://github.com/Dach-Coin/rlm-tools-bsl/releases/tag/v1.9.4",
+      "sourceTag": "v1.9.4",
+      "sourceCommit": "0af7461caf9547bed14bf742b66d71deb57b86e8",
+      "license": "MIT",
+      "binaryPath": "bin/darwin-arm64/rlm-bsl-index",
+      "sha256": "4b6e0efb4eba630b2cc7c28436e10d6ccf3e97dcffaeb6696225e547add2859c"
     }
   ],
   "remoteMcpServers": [

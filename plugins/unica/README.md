@@ -6,6 +6,8 @@ Included in this plugin version:
 
 - `bsl-analyzer` `0.1.144`
 - `v8-runner` `0.3.0`
+- `rlm-tools-bsl` `1.9.4`
+- `rlm-bsl-index` `1.9.4`
 - public v8std MCP endpoint: `https://ai.v8std.ru/mcp`
 
 The local tools are committed as binaries under `bin/darwin-arm64/`. They are never launched directly by `.mcp.json`; every launch goes through `scripts/run-tool.sh`, which checks:
@@ -32,9 +34,12 @@ The plugin exposes:
 - `unica-bsl-reference` for platform/reference tools from `bsl-analyzer`;
 - `unica-bsl-workspace` for project-local BSL metadata and code tools;
 - `unica-v8-runner` for `v8-runner` build/test/syntax workflows;
+- `unica-rlm-tools-bsl` for token-efficient exploration of large 1C BSL codebases;
 - `unica-v8std` for public v8std standards and APK knowledge.
 
 `unica-bsl-workspace` uses the current directory as `--source-dir` by default. Set `UNICA_BSL_SOURCE_DIR` when Codex should analyze a different source root.
+
+`unica-rlm-tools-bsl` starts the packaged `rlm-tools-bsl` stdio MCP server. Environment variables documented by `rlm-tools-bsl` (`RLM_*`, `OPENAI_*`, `ANTHROPIC_*`) are inherited from the Codex process.
 
 ## Updating Pinned Tools
 

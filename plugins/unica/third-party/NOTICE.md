@@ -17,4 +17,12 @@ Unica V1 commits third-party macOS arm64 binaries so a plugin version maps to a 
 - Tag: v0.3.0
 - License: NOASSERTION in the inspected public tag.
 
+## rlm-tools-bsl
+
+- Repository: https://github.com/Dach-Coin/rlm-tools-bsl
+- Version: 1.9.4
+- Tag: v1.9.4
+- License: MIT
+- Included notices: `third-party/licenses/rlm-tools-bsl/`
+
 When updating tool versions, update this file and `third-party/manifest.json` in the same change.
