@@ -4,6 +4,8 @@
 
 Use this when the user asks for code review, refactoring, error fixing,
 performance optimization, or standards compliance in BSL code.
+Use `api-design` for public API, service interface, overridable module,
+versioning, or backward compatibility decisions.
 
 Do not use this as a replacement for metadata or runtime tools. Use it together
 with object-specific info tools, source search, syntax checks, and focused tests.

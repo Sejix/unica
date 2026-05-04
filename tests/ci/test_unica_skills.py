@@ -54,6 +54,113 @@ OUT_OF_SCOPE = [
     "img-grid",
 ]
 
+SCENARIO_SKILLS = {
+    "api-design": [
+        "unica.code.search",
+        "unica.code.diagnostics",
+        "unica.project.map",
+        "unica.subsystem.info",
+        "unica.meta.info",
+        "unica.standards.search",
+        "unica.standards.explain",
+        "unica.runtime.execute",
+    ],
+    "code-search": ["unica.code.search", "unica.project.map"],
+    "code-diagnostics": [
+        "unica.code.diagnostics",
+        "unica.code.search",
+        "unica.standards.explain",
+        "unica.standards.search",
+        "unica.runtime.execute",
+    ],
+    "code-review": [
+        "unica.code.search",
+        "unica.code.diagnostics",
+        "unica.standards.explain",
+        "unica.standards.search",
+        "unica.project.map",
+        "unica.runtime.execute",
+    ],
+    "query-optimize": [
+        "unica.code.search",
+        "unica.skd.info",
+        "unica.meta.info",
+        "unica.standards.search",
+        "unica.standards.explain",
+        "unica.runtime.execute",
+    ],
+    "test-authoring": [
+        "unica.code.search",
+        "unica.project.map",
+        "unica.runtime.execute",
+    ],
+    "platform-help": [
+        "unica.standards.search",
+        "unica.standards.explain",
+        "unica.code.search",
+        "unica.project.map",
+        "unica.runtime.execute",
+    ],
+    "bsp-patterns": [
+        "unica.code.search",
+        "unica.meta.info",
+        "unica.form.info",
+        "unica.role.info",
+        "unica.standards.search",
+        "unica.standards.explain",
+        "unica.runtime.execute",
+    ],
+    "integration-implement": [
+        "unica.project.map",
+        "unica.meta.info",
+        "unica.meta.compile",
+        "unica.meta.edit",
+        "unica.code.search",
+        "unica.standards.search",
+        "unica.standards.explain",
+        "unica.runtime.execute",
+    ],
+    "autonomous-server": [
+        "unica.project.map",
+        "unica.runtime.execute",
+        "unica.meta.info",
+        "unica.code.search",
+        "unica.code.diagnostics",
+    ],
+    "log-analysis": [
+        "unica.code.search",
+        "unica.meta.info",
+        "unica.project.map",
+        "unica.code.diagnostics",
+        "unica.standards.search",
+        "unica.standards.explain",
+    ],
+}
+
+SCENARIO_REQUIRED_TOKENS = {
+    "api-design": [
+        "483",
+        "543",
+        "551",
+        "553",
+        "644",
+        "Программный интерфейс",
+        "Служебный программный интерфейс",
+        "Переопределяемый интерфейс",
+        "Устаревшие процедуры и функции",
+        "API-first",
+    ],
+    "code-diagnostics": ["АПК", "EDT", "BSL LS", "отключ", "v8std"],
+    "code-review": ["Findings first", "severity", "file/line"],
+    "query-optimize": ["СКД", "virtual", "query-in-loop"],
+    "test-authoring": ['"testRunner": "yaxunit"', '"testRunner": "va"'],
+    "platform-help": ["Unica MCP contract gap", "method signatures"],
+    "bsp-patterns": ["БСП", "СведенияОВнешнейОбработке"],
+    "integration-implement": ["HTTP-сервис", "webhook", "secrets"],
+    "autonomous-server": ["HTTP-сервис", "веб-клиент", "web-test"],
+    "log-analysis": ["журнала регистрации", "технологического журнала", "ЖР", "ТЖ"],
+}
+
 REPLACED_RUNTIME_SKILLS = {
     "db-create",
     "db-list",
@@ -358,6 +465,21 @@ class UnicaSkillRoutingTests(unittest.TestCase):
                 self.assertNotIn("unica-rlm-tools-bsl", text)
                 self.assertNotIn("unica-v8std", text)
 
+    def test_scenario_skills_cover_requested_unica_workflows(self) -> None:
+        for skill, tool_names in SCENARIO_SKILLS.items():
+            with self.subTest(skill=skill):
+                path = self.skill_root() / skill / "SKILL.md"
+                self.assertTrue(path.is_file())
+                text = path.read_text(encoding="utf-8")
+                self.assertIn(f"name: {skill}", text)
+                self.assertRegex(text, r"(?m)^description:\s+")
+                self.assertIn("## MCP routing", text)
+                self.assertIn("MCP `unica`", text)
+                for tool_name in tool_names:
+                    self.assertIn(tool_name, text)
+                for token in SCENARIO_REQUIRED_TOKENS.get(skill, []):
+                    self.assertIn(token, text)
+
     def test_all_skills_do_not_expose_internal_mcp_names(self) -> None:
         forbidden = [
             "unica-coder",
@@ -490,7 +612,7 @@ class UnicaSkillRoutingTests(unittest.TestCase):
             "use-cases/reports-printing.md",
             "use-cases/extensions-cfe.md",
             "use-cases/rights-access.md",
-            "use-cases/web-publication-testing.md",
+            "use-cases/autonomous-server-debug.md",
             "use-cases/code-quality-review.md",
             "use-cases/integrations.md",
             "specs/README.md",
@@ -508,6 +630,31 @@ class UnicaSkillRoutingTests(unittest.TestCase):
                 if relative_path.startswith("use-cases/"):
                     self.assertIn("## When to use", text)
                     self.assertIn("## Primary path", text)
+
+    def test_web_publish_skill_surface_is_replaced_by_autonomous_server(self) -> None:
+        self.assertTrue((self.skill_root() / "autonomous-server" / "SKILL.md").is_file())
+        for skill in ["web-publish", "web-info", "web-stop", "web-unpublish"]:
+            with self.subTest(skill=skill):
+                self.assertFalse((self.skill_root() / skill).exists())
+
+        docs = [
+            self.repo_root() / "plugins" / "unica" / "README.md",
+            self.reference_root() / "README.md",
+            *self.skill_root().glob("*/SKILL.md"),
+            *self.reference_root().glob("use-cases/*.md"),
+        ]
+        forbidden = [
+            "web-publish",
+            "web-info",
+            "web-stop",
+            "web-unpublish",
+            "web-publication-testing.md",
+        ]
+        for doc in docs:
+            text = doc.read_text(encoding="utf-8")
+            for token in forbidden:
+                with self.subTest(path=doc.relative_to(self.repo_root()), token=token):
+                    self.assertNotIn(token, text)
 
     def test_source_set_format_detection_contract_is_documented(self) -> None:
         docs = {

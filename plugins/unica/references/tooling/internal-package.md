@@ -10,7 +10,7 @@ Public skills live in `skills/` and model tasks a 1C developer performs:
 - create, edit, validate, compile, dump, and load metadata;
 - build and validate EPF/ERF artifacts;
 - create and update infobases;
-- inspect and edit forms, roles, SKD, MXL, subsystems, interfaces, and web publication;
+- inspect and edit forms, roles, SKD, MXL, subsystems, interfaces, and autonomous web-client debug;
 - search, analyze, and validate BSL code as part of those workflows.
 
 Tool-specific behavior is an implementation detail of those workflows.

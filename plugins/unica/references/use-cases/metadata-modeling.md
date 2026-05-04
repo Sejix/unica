@@ -7,7 +7,7 @@ configuration metadata: configuration root files, catalogs, documents,
 registers, constants, enums, common modules, subsystems, command interfaces,
 templates, external processors/reports as metadata objects, and related XML.
 
-Do not use this for database build/dump/load or artifact publication. Those are
+Do not use this for database build/dump/load or artifact build/export. Those are
 runtime workflows handled by `v8-runner`.
 
 ## Primary path

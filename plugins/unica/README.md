@@ -7,8 +7,8 @@ The public skills model developer operations, not infrastructure tools:
 - create, inspect, edit, validate, compile, dump, and load 1C metadata;
 - build, dump, and publish external processing/report source sets (`EPF`/`ERF`) through v8-runner MCP workflows;
 - run v8-runner database/build/runtime workflows through MCP `unica`;
-- work with forms, roles, SKD, MXL, subsystems, command interfaces, help, templates, and web publication;
-- search and analyze BSL code inside those workflows.
+- work with forms, roles, SKD, MXL, subsystems, command interfaces, help, templates, and autonomous web-client debug;
+- search, review, diagnose, test, and analyze BSL code inside those workflows.
 - bootstrap a new 1C repository workspace with `v8project.yaml`.
 
 Bundled tooling, wrappers, MCP server names, checksums, and third-party notices are internal package infrastructure. Project configuration is `v8project.yaml` / `V8TR_CONFIG`; database and build workflows should use the `v8-runner` skill, which calls MCP `unica.runtime.execute`. See `references/tooling/internal-package.md` when maintaining the plugin itself.
@@ -23,7 +23,9 @@ The `skills/` directory contains operation skills and scenario references for 1C
 - `epf-bsp-init`, `epf-bsp-add-command` for BSP registration helpers; EPF/ERF build and dump workflows live in `v8-runner`
 - `form-add`, `form-edit`, `form-info`, `form-compile`, `form-validate`, `form-remove`
 - `meta-compile`, `meta-edit`, `meta-info`, `meta-remove`, `meta-validate`
-- `mxl-*`, `role-*`, `skd-*`, `subsystem-*`, `interface-*`, `template-*`, `web-*`, `img-grid`
+- `mxl-*`, `role-*`, `skd-*`, `subsystem-*`, `interface-*`, `template-*`, `web-test`, `img-grid`
+- `code-search`, `code-diagnostics`, `code-review`, `query-optimize`, `test-authoring`
+- `api-design`, `platform-help`, `bsp-patterns`, `integration-implement`, `autonomous-server`, `log-analysis`
 
 ## Local Codex Install
 

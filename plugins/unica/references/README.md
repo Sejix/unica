@@ -13,9 +13,9 @@ Use this index when a skill needs background guidance beyond its own `SKILL.md`.
 | Build reports, SKD/DCS schemas, MXL layouts, print forms, and external report artifacts | `references/use-cases/reports-printing.md` |
 | Create or inspect extensions, borrow objects, and generate method interceptors | `references/use-cases/extensions-cfe.md` |
 | Create, validate, or audit roles and access rights | `references/use-cases/rights-access.md` |
-| Publish infobases to Apache and test through the web client | `references/use-cases/web-publication-testing.md` |
-| Review, refactor, fix, or optimize BSL code | `references/use-cases/code-quality-review.md` |
-| Implement integrations and OpenSpec-backed integration changes | `references/use-cases/integrations.md` |
+| Prepare an autonomous debug contour and test through the web client | `references/use-cases/autonomous-server-debug.md` |
+| Search, review, diagnose, refactor, test, or optimize BSL code | `references/use-cases/code-quality-review.md` |
+| Implement integrations and contract-backed integration changes | `references/use-cases/integrations.md` |
 
 ## Stable Specs
 

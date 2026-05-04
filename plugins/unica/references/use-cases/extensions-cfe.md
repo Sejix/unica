@@ -19,7 +19,7 @@ Use native CFE tools through MCP `unica`:
 - `unica.cfe.borrow`
 - `unica.cfe.patch_method`
 
-Runtime publication or loading of `.cfe` artifacts is handled by `v8-runner`
+Runtime export or loading of `.cfe` artifacts is handled by `v8-runner`
 with `operation=make` or `operation=load`.
 
 ## Related references

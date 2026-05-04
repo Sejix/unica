@@ -3,7 +3,7 @@
 ## When to use
 
 Use this when the user needs reports, SKD/DCS schemas, tabular document layouts,
-print forms, BSP external processing registration, or EPF/ERF publication.
+print forms, BSP external processing registration, or EPF/ERF build/export.
 
 Do not use `operation=load` for `.epf` or `.erf`. External processors and
 reports are handled through external source-sets with `build`, `dump`, and

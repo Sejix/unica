@@ -4,7 +4,7 @@
 
 Use this when the user needs a new workspace, `v8project.yaml`, infobase init,
 source build/dump, Designer/EDT conversion, CF/CFE artifact load/export,
-EPF/ERF external source-set publication, syntax checks, tests, or 1C launch.
+EPF/ERF external source-set build/export, syntax checks, tests, or 1C launch.
 
 Do not use this for point edits inside XML metadata. Use the object-specific
 skills for configuration roots, metadata objects, forms, SKD, MXL, roles,
@@ -44,4 +44,4 @@ source-set path itself has no stronger structural evidence.
 
 - `references/tooling/v8project.md`
 - `references/tooling/runtime-build.md`
-- `references/use-cases/web-publication-testing.md`
+- `references/use-cases/autonomous-server-debug.md`

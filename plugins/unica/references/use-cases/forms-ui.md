@@ -6,8 +6,8 @@ Use this when the user asks to add, inspect, compile, edit, validate, or remove
 managed forms, form elements, attributes, commands, event hooks, or form module
 behavior.
 
-Do not use this for publishing a web endpoint or running browser tests. Use the
-web publication/testing use case for that.
+Do not use this for preparing a debug server or running browser tests. Use the
+autonomous server debug use case for that.
 
 ## Primary path
 

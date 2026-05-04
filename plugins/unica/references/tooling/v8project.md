@@ -83,4 +83,4 @@ Use the `v8-runner` skill and MCP `unica.runtime.execute` for runtime operations
 - Prefer `source-set` names over ad hoc source directories.
 - When credentials are absent, try only empty-password `Администратор`, then empty-password `Admin`; if both fail, ask the user.
 - If a command reports a 1C license problem, stop and ask the user to fix licensing. Do not edit license services, HASP settings, registry, or license files.
-- Use native skill scripts only for operations v8-runner does not expose directly, such as web Apache publication helpers. EPF/ERF dump/build flows use external source sets through `unica.runtime.execute`.
+- If a runtime flag or debug-server step is missing from `unica.runtime.execute`, treat it as a Unica MCP contract gap. EPF/ERF dump/build flows use external source sets through `unica.runtime.execute`.
