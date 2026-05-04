@@ -11,6 +11,9 @@ use serde_json::{Map, Value};
 use std::env;
 use std::path::PathBuf;
 
+mod tool_contracts;
+pub use tool_contracts::input_schema_for_tool;
+
 #[derive(Debug, Clone, Copy)]
 pub struct ToolSpec {
     pub name: &'static str,
@@ -214,6 +217,7 @@ fn call_tool(spec: ToolSpec, args: &Map<String, Value>) -> Result<OperationResul
         .get("dryRun")
         .and_then(Value::as_bool)
         .unwrap_or(spec.mutating);
+    tool_contracts::validate_tool_arguments(spec, args, dry_run)?;
     let cwd = args
         .get("cwd")
         .and_then(Value::as_str)
@@ -222,6 +226,7 @@ fn call_tool(spec: ToolSpec, args: &Map<String, Value>) -> Result<OperationResul
             env::current_dir().map_err(|err| format!("failed to read current directory: {err}"))?,
         );
     let context = WorkspaceContext::discover(cwd)?;
+    tool_contracts::validate_workspace_paths(spec, args, dry_run, &context)?;
     let state_repo = WorkspaceStateRepository::new(&context);
 
     let outcome = match spec.handler {
@@ -900,5 +905,59 @@ mod tests {
         assert!(result.ok);
         assert_eq!(result.cache.mode, "read");
         assert!(result.summary.contains("workspace root"));
+    }
+
+    #[test]
+    fn native_operations_rs_is_thin_facade_not_xml_dsl_monolith() {
+        let infrastructure_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("src")
+            .join("infrastructure");
+        let path = infrastructure_dir.join("native_operations.rs");
+        let text = std::fs::read_to_string(&path).unwrap();
+        let line_count = text.lines().count();
+
+        assert!(
+            line_count < 200,
+            "native_operations.rs must stay a thin facade; got {line_count} lines"
+        );
+        assert!(
+            !text.contains("match operation"),
+            "operation-specific XML/DSL dispatch belongs in backend modules"
+        );
+        assert!(
+            !infrastructure_dir
+                .join("native_operations_backend.rs")
+                .exists(),
+            "native_operations_backend.rs must not return; split operation logic by family under native_operations/"
+        );
+    }
+
+    #[test]
+    fn mutating_native_operation_rejects_output_escape_before_backend_execution() {
+        let root =
+            std::env::temp_dir().join(format!("unica-app-path-policy-{}", std::process::id()));
+        let workspace = root.join("workspace");
+        std::fs::create_dir_all(&workspace).unwrap();
+        let mut args = Map::new();
+        args.insert(
+            "cwd".to_string(),
+            Value::String(workspace.display().to_string()),
+        );
+        args.insert("dryRun".to_string(), Value::Bool(false));
+        args.insert("Name".to_string(), Value::String("PathPolicy".to_string()));
+        args.insert(
+            "OutputDir".to_string(),
+            Value::String("../outside".to_string()),
+        );
+
+        let error = match UnicaApplication::new().call_tool("unica.cf.init", &args) {
+            Ok(result) => panic!("expected path policy error, got {}", result.summary),
+            Err(error) => error,
+        };
+
+        assert!(error.contains("outside workspace root"));
+        assert!(!root.join("outside").exists());
+
+        let _ = std::fs::remove_dir_all(root);
     }
 }

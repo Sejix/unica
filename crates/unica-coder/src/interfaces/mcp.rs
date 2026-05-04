@@ -1,4 +1,4 @@
-use crate::application::{ToolSpec, UnicaApplication};
+use crate::application::{input_schema_for_tool, ToolSpec, UnicaApplication};
 use serde_json::{json, Value};
 use std::io::{self, BufRead, Write};
 
@@ -85,25 +85,7 @@ fn list_tools(tools: Vec<ToolSpec>) -> Vec<Value> {
             json!({
                 "name": tool.name,
                 "description": tool.description,
-                "inputSchema": {
-                    "type": "object",
-                    "additionalProperties": true,
-                    "properties": {
-                        "dryRun": {
-                            "type": "boolean",
-                            "description": "For mutating tools defaults to true. Pass false to execute the operation."
-                        },
-                        "cwd": {
-                            "type": "string",
-                            "description": "Working directory for resolving project-relative paths."
-                        },
-                        "args": {
-                            "type": "array",
-                            "items": { "type": "string" },
-                            "description": "Optional raw argument vector for internal CLI adapters."
-                        }
-                    }
-                }
+                "inputSchema": input_schema_for_tool(tool)
             })
         })
         .collect()
@@ -170,5 +152,41 @@ mod tests {
         assert!(listed
             .iter()
             .any(|tool| tool["name"] == "unica.standards.explain"));
+    }
+
+    #[test]
+    fn native_tool_schema_is_contract_specific_and_does_not_expose_raw_args() {
+        let app = UnicaApplication::new();
+        let request = json!({ "jsonrpc": "2.0", "id": 1, "method": "tools/list" });
+        let response = handle_message(&app, request).unwrap();
+        let listed = response["result"]["tools"].as_array().unwrap();
+        let cf_info = listed
+            .iter()
+            .find(|tool| tool["name"] == "unica.cf.info")
+            .expect("unica.cf.info must be listed");
+
+        let schema = &cf_info["inputSchema"];
+        assert_eq!(schema["additionalProperties"], false);
+        assert!(schema["properties"].get("ConfigPath").is_some());
+        assert!(schema["properties"].get("cwd").is_some());
+        assert!(schema["properties"].get("dryRun").is_some());
+        assert!(schema["properties"].get("args").is_none());
+    }
+
+    #[test]
+    fn no_public_tool_schema_exposes_raw_adapter_args() {
+        let app = UnicaApplication::new();
+        let request = json!({ "jsonrpc": "2.0", "id": 1, "method": "tools/list" });
+        let response = handle_message(&app, request).unwrap();
+        let listed = response["result"]["tools"].as_array().unwrap();
+
+        for tool in listed {
+            let properties = &tool["inputSchema"]["properties"];
+            assert!(
+                properties.get("args").is_none(),
+                "{} must not expose raw adapter args",
+                tool["name"]
+            );
+        }
     }
 }
