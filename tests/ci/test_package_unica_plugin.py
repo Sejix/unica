@@ -200,7 +200,7 @@ class PackageUnicaPluginTests(unittest.TestCase):
             binary.write_text(
                 "#!/usr/bin/env sh\n"
                 "if [ \"$1\" = \"--help\" ]; then\n"
-                "  echo 'unica 0.3.11'\n"
+                "  echo 'unica 0.3.12'\n"
                 "  echo 'stdio MCP orchestrator for Unica workflows'\n"
                 "  exit 0\n"
                 "fi\n"
@@ -216,7 +216,7 @@ class PackageUnicaPluginTests(unittest.TestCase):
                         "tools": [
                             {
                                 "name": "unica",
-                                "version": "0.3.11",
+                                "version": "0.3.12",
                                 "repository": "https://github.com/IngvarConsulting/unica",
                                 "upstreamUrl": "https://github.com/IngvarConsulting/unica/releases/tag/workspace",
                                 "sourceTag": "workspace",
@@ -240,7 +240,7 @@ class PackageUnicaPluginTests(unittest.TestCase):
                         "tools": [
                             {
                                 "name": "unica",
-                                "version": "0.3.11",
+                                "version": "0.3.12",
                                 "repository": "https://github.com/IngvarConsulting/unica",
                                 "sourceTag": "workspace",
                                 "sourceCommit": "workspace",
@@ -297,7 +297,7 @@ class PackageUnicaPluginTests(unittest.TestCase):
                 stderr=subprocess.PIPE,
                 check=True,
             )
-            self.assertIn("unica 0.3.11", result.stdout)
+            self.assertIn("unica 0.3.12", result.stdout)
 
 
 if __name__ == "__main__":
