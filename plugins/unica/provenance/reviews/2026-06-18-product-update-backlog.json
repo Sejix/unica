@@ -1,0 +1,86 @@
+{
+  "schemaVersion": 1,
+  "id": "2026-06-18-product-update-backlog",
+  "generatedAt": "2026-06-18",
+  "purpose": "Product and dependency update backlog for Unica bundled tools, plugin package dependencies, and release-package inputs.",
+  "products": [
+    {
+      "id": "bsl-analyzer",
+      "kind": "bundled-tool",
+      "locked": "v0.1.181",
+      "latest": "v0.2.37",
+      "risk": "high",
+      "batch": "bsl-analyzer-contract",
+      "status": "needs-contract-review",
+      "contractGate": true,
+      "notes": "Verify analyze/search/MCP profile CLI before updating tools.lock.json."
+    },
+    {
+      "id": "rlm-tools-bsl",
+      "kind": "bundled-tool",
+      "locked": "v1.12.0",
+      "latest": "v1.21.0",
+      "risk": "medium",
+      "batch": "rlm-index-contract",
+      "status": "needs-index-smoke",
+      "contractGate": true,
+      "notes": "Update together with rlm-bsl-index because both come from the same repository and tag."
+    },
+    {
+      "id": "rlm-bsl-index",
+      "kind": "bundled-tool",
+      "locked": "v1.12.0",
+      "latest": "v1.21.0",
+      "risk": "medium",
+      "batch": "rlm-index-contract",
+      "status": "needs-index-smoke",
+      "contractGate": true,
+      "notes": "Verify index build/update/info stdout and SQLite schema used by WorkspaceIndexService."
+    },
+    {
+      "id": "v8-runner",
+      "kind": "bundled-tool",
+      "locked": "v0.5.0",
+      "latest": "v0.5.1",
+      "risk": "low-medium",
+      "batch": "v8-runner-runtime",
+      "status": "needs-runtime-smoke",
+      "contractGate": true,
+      "notes": "Review version command and partial-load/build behavior before moving the tool lock."
+    },
+    {
+      "id": "playwright",
+      "kind": "npm-package-lock",
+      "locked": "1.58.2",
+      "latest": "1.61.0",
+      "risk": "low",
+      "batch": "low-risk-dependencies",
+      "status": "applied",
+      "contractGate": false,
+      "notes": "Update web-test package-lock and verify Playwright import/version."
+    },
+    {
+      "id": "lxml",
+      "kind": "python-test-dependency",
+      "locked": "unpinned-installed-6.1.0",
+      "latest": "6.1.1",
+      "risk": "low",
+      "batch": "low-risk-dependencies",
+      "status": "applied",
+      "contractGate": false,
+      "notes": "Pin tests/ci/requirements.txt to make CI dependency state reproducible."
+    },
+    {
+      "id": "rust-compatible-lock-updates",
+      "kind": "cargo-lock",
+      "locked": "current-compatible",
+      "latest": "cargo-update-dry-run-2026-06-18",
+      "updateCount": 16,
+      "risk": "low",
+      "batch": "low-risk-dependencies",
+      "status": "applied",
+      "contractGate": false,
+      "notes": "cargo update --dry-run reports compatible transitive updates only; direct major updates stay out of this batch."
+    }
+  ]
+}

@@ -278,6 +278,31 @@ class PackageUnicaPluginTests(unittest.TestCase):
                 )
             )
             self.assertEqual(sorted(packaged_mcp["mcpServers"]), ["unica"])
+            provenance = out_dir / "marketplace" / "plugins" / "unica" / "provenance" / "skill-upstreams.json"
+            self.assertTrue(provenance.is_file())
+            self.assertIn("v8-runner-rust", provenance.read_text(encoding="utf-8"))
+            upstream_review = (
+                out_dir
+                / "marketplace"
+                / "plugins"
+                / "unica"
+                / "provenance"
+                / "reviews"
+                / "2026-06-15-upstream-review.json"
+            )
+            self.assertTrue(upstream_review.is_file())
+            self.assertIn("needs-adaptation-decision", upstream_review.read_text(encoding="utf-8"))
+            product_backlog = (
+                out_dir
+                / "marketplace"
+                / "plugins"
+                / "unica"
+                / "provenance"
+                / "reviews"
+                / "2026-06-18-product-update-backlog.json"
+            )
+            self.assertTrue(product_backlog.is_file())
+            self.assertIn("bsl-analyzer", product_backlog.read_text(encoding="utf-8"))
 
             result = subprocess.run(
                 [

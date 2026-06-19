@@ -1,0 +1,1213 @@
+{
+  "schemaVersion": 1,
+  "upstreams": [
+    {
+      "id": "cc-1c-skills",
+      "repository": "https://github.com/Nikolay-Shirokov/cc-1c-skills",
+      "trackingRef": "main",
+      "role": "operation-parity",
+      "baselineCommit": "f3466e19fdc37954c030e48daabcc192f0098fe7",
+      "entries": [
+        {
+          "skill": "cf-edit",
+          "status": "ported-to-unica",
+          "notes": "Ported from the cc-1c-skills command surface and adapted to Unica MCP; local parity fixtures retain donor operation behavior.",
+          "upstreamPaths": [
+            ".claude/skills/cf-edit/**",
+            "docs/cf-guide.md",
+            "docs/1c-configuration-spec.md",
+            "docs/1c-config-objects-spec.md"
+          ],
+          "localPaths": [
+            "plugins/unica/skills/cf-edit",
+            "tests/fixtures/unica_mcp_script_parity/reference_skills/cf-edit"
+          ],
+          "contractPaths": [
+            "tests/ci/test_unica_skills.py",
+            "tests/ci/test_unica_mcp_script_parity.py"
+          ]
+        },
+        {
+          "skill": "cf-info",
+          "status": "ported-to-unica",
+          "notes": "Ported from the cc-1c-skills command surface and adapted to Unica MCP; local parity fixtures retain donor operation behavior.",
+          "upstreamPaths": [
+            ".claude/skills/cf-info/**",
+            "docs/cf-guide.md",
+            "docs/1c-configuration-spec.md",
+            "docs/1c-config-objects-spec.md"
+          ],
+          "localPaths": [
+            "plugins/unica/skills/cf-info",
+            "tests/fixtures/unica_mcp_script_parity/reference_skills/cf-info"
+          ],
+          "contractPaths": [
+            "tests/ci/test_unica_skills.py",
+            "tests/ci/test_unica_mcp_script_parity.py"
+          ]
+        },
+        {
+          "skill": "cf-init",
+          "status": "ported-to-unica",
+          "notes": "Ported from the cc-1c-skills command surface and adapted to Unica MCP; local parity fixtures retain donor operation behavior.",
+          "upstreamPaths": [
+            ".claude/skills/cf-init/**",
+            "docs/cf-guide.md",
+            "docs/1c-configuration-spec.md",
+            "docs/1c-config-objects-spec.md"
+          ],
+          "localPaths": [
+            "plugins/unica/skills/cf-init",
+            "tests/fixtures/unica_mcp_script_parity/reference_skills/cf-init"
+          ],
+          "contractPaths": [
+            "tests/ci/test_unica_skills.py",
+            "tests/ci/test_unica_mcp_script_parity.py"
+          ]
+        },
+        {
+          "skill": "cf-validate",
+          "status": "ported-to-unica",
+          "notes": "Ported from the cc-1c-skills command surface and adapted to Unica MCP; local parity fixtures retain donor operation behavior.",
+          "upstreamPaths": [
+            ".claude/skills/cf-validate/**",
+            "docs/cf-guide.md",
+            "docs/1c-configuration-spec.md",
+            "docs/1c-config-objects-spec.md"
+          ],
+          "localPaths": [
+            "plugins/unica/skills/cf-validate",
+            "tests/fixtures/unica_mcp_script_parity/reference_skills/cf-validate"
+          ],
+          "contractPaths": [
+            "tests/ci/test_unica_skills.py",
+            "tests/ci/test_unica_mcp_script_parity.py"
+          ]
+        },
+        {
+          "skill": "cfe-borrow",
+          "status": "ported-to-unica",
+          "notes": "Ported from the cc-1c-skills command surface and adapted to Unica MCP; local parity fixtures retain donor operation behavior.",
+          "upstreamPaths": [
+            ".claude/skills/cfe-borrow/**",
+            "docs/cfe-guide.md",
+            "docs/1c-extension-spec.md"
+          ],
+          "localPaths": [
+            "plugins/unica/skills/cfe-borrow",
+            "tests/fixtures/unica_mcp_script_parity/reference_skills/cfe-borrow"
+          ],
+          "contractPaths": [
+            "tests/ci/test_unica_skills.py",
+            "tests/ci/test_unica_mcp_script_parity.py"
+          ]
+        },
+        {
+          "skill": "cfe-diff",
+          "status": "ported-to-unica",
+          "notes": "Ported from the cc-1c-skills command surface and adapted to Unica MCP; local parity fixtures retain donor operation behavior.",
+          "upstreamPaths": [
+            ".claude/skills/cfe-diff/**",
+            "docs/cfe-guide.md",
+            "docs/1c-extension-spec.md"
+          ],
+          "localPaths": [
+            "plugins/unica/skills/cfe-diff",
+            "tests/fixtures/unica_mcp_script_parity/reference_skills/cfe-diff"
+          ],
+          "contractPaths": [
+            "tests/ci/test_unica_skills.py",
+            "tests/ci/test_unica_mcp_script_parity.py"
+          ]
+        },
+        {
+          "skill": "cfe-init",
+          "status": "ported-to-unica",
+          "notes": "Ported from the cc-1c-skills command surface and adapted to Unica MCP; local parity fixtures retain donor operation behavior.",
+          "upstreamPaths": [
+            ".claude/skills/cfe-init/**",
+            "docs/cfe-guide.md",
+            "docs/1c-extension-spec.md"
+          ],
+          "localPaths": [
+            "plugins/unica/skills/cfe-init",
+            "tests/fixtures/unica_mcp_script_parity/reference_skills/cfe-init"
+          ],
+          "contractPaths": [
+            "tests/ci/test_unica_skills.py",
+            "tests/ci/test_unica_mcp_script_parity.py"
+          ]
+        },
+        {
+          "skill": "cfe-patch-method",
+          "status": "ported-to-unica",
+          "notes": "Ported from the cc-1c-skills command surface and adapted to Unica MCP; local parity fixtures retain donor operation behavior.",
+          "upstreamPaths": [
+            ".claude/skills/cfe-patch-method/**",
+            "docs/cfe-guide.md",
+            "docs/1c-extension-spec.md"
+          ],
+          "localPaths": [
+            "plugins/unica/skills/cfe-patch-method",
+            "tests/fixtures/unica_mcp_script_parity/reference_skills/cfe-patch-method"
+          ],
+          "contractPaths": [
+            "tests/ci/test_unica_skills.py",
+            "tests/ci/test_unica_mcp_script_parity.py"
+          ]
+        },
+        {
+          "skill": "cfe-validate",
+          "status": "ported-to-unica",
+          "notes": "Ported from the cc-1c-skills command surface and adapted to Unica MCP; local parity fixtures retain donor operation behavior.",
+          "upstreamPaths": [
+            ".claude/skills/cfe-validate/**",
+            "docs/cfe-guide.md",
+            "docs/1c-extension-spec.md"
+          ],
+          "localPaths": [
+            "plugins/unica/skills/cfe-validate",
+            "tests/fixtures/unica_mcp_script_parity/reference_skills/cfe-validate"
+          ],
+          "contractPaths": [
+            "tests/ci/test_unica_skills.py",
+            "tests/ci/test_unica_mcp_script_parity.py"
+          ]
+        },
+        {
+          "skill": "epf-bsp-add-command",
+          "status": "ported-to-unica",
+          "notes": "Adapted from the cc-1c-skills command surface for the packaged Unica skill.",
+          "upstreamPaths": [
+            ".claude/skills/epf-bsp-add-command/**",
+            "docs/epf-guide.md",
+            "docs/1c-epf-spec.md"
+          ],
+          "localPaths": [
+            "plugins/unica/skills/epf-bsp-add-command"
+          ],
+          "contractPaths": [
+            "tests/ci/test_unica_skills.py"
+          ]
+        },
+        {
+          "skill": "epf-bsp-init",
+          "status": "ported-to-unica",
+          "notes": "Adapted from the cc-1c-skills command surface for the packaged Unica skill.",
+          "upstreamPaths": [
+            ".claude/skills/epf-bsp-init/**",
+            "docs/epf-guide.md",
+            "docs/1c-epf-spec.md"
+          ],
+          "localPaths": [
+            "plugins/unica/skills/epf-bsp-init"
+          ],
+          "contractPaths": [
+            "tests/ci/test_unica_skills.py"
+          ]
+        },
+        {
+          "skill": "form-add",
+          "status": "ported-to-unica",
+          "notes": "Ported from the cc-1c-skills command surface and adapted to Unica MCP; local parity fixtures retain donor operation behavior.",
+          "upstreamPaths": [
+            ".claude/skills/form-add/**",
+            "docs/form-guide.md",
+            "docs/form-dsl-spec.md",
+            "docs/form-patterns.md",
+            "docs/1c-form-spec.md"
+          ],
+          "localPaths": [
+            "plugins/unica/skills/form-add",
+            "tests/fixtures/unica_mcp_script_parity/reference_skills/form-add"
+          ],
+          "contractPaths": [
+            "tests/ci/test_unica_skills.py",
+            "tests/ci/test_unica_mcp_script_parity.py"
+          ]
+        },
+        {
+          "skill": "form-compile",
+          "status": "ported-to-unica",
+          "notes": "Ported from the cc-1c-skills command surface and adapted to Unica MCP; local parity fixtures retain donor operation behavior.",
+          "upstreamPaths": [
+            ".claude/skills/form-compile/**",
+            "docs/form-guide.md",
+            "docs/form-dsl-spec.md",
+            "docs/form-patterns.md",
+            "docs/1c-form-spec.md"
+          ],
+          "localPaths": [
+            "plugins/unica/skills/form-compile",
+            "tests/fixtures/unica_mcp_script_parity/reference_skills/form-compile"
+          ],
+          "contractPaths": [
+            "tests/ci/test_unica_skills.py",
+            "tests/ci/test_unica_mcp_script_parity.py"
+          ]
+        },
+        {
+          "skill": "form-edit",
+          "status": "ported-to-unica",
+          "notes": "Ported from the cc-1c-skills command surface and adapted to Unica MCP; local parity fixtures retain donor operation behavior.",
+          "upstreamPaths": [
+            ".claude/skills/form-edit/**",
+            "docs/form-guide.md",
+            "docs/form-dsl-spec.md",
+            "docs/form-patterns.md",
+            "docs/1c-form-spec.md"
+          ],
+          "localPaths": [
+            "plugins/unica/skills/form-edit",
+            "tests/fixtures/unica_mcp_script_parity/reference_skills/form-edit"
+          ],
+          "contractPaths": [
+            "tests/ci/test_unica_skills.py",
+            "tests/ci/test_unica_mcp_script_parity.py"
+          ]
+        },
+        {
+          "skill": "form-info",
+          "status": "ported-to-unica",
+          "notes": "Ported from the cc-1c-skills command surface and adapted to Unica MCP; local parity fixtures retain donor operation behavior.",
+          "upstreamPaths": [
+            ".claude/skills/form-info/**",
+            "docs/form-guide.md",
+            "docs/form-dsl-spec.md",
+            "docs/form-patterns.md",
+            "docs/1c-form-spec.md"
+          ],
+          "localPaths": [
+            "plugins/unica/skills/form-info",
+            "tests/fixtures/unica_mcp_script_parity/reference_skills/form-info"
+          ],
+          "contractPaths": [
+            "tests/ci/test_unica_skills.py",
+            "tests/ci/test_unica_mcp_script_parity.py"
+          ]
+        },
+        {
+          "skill": "form-patterns",
+          "status": "ported-to-unica",
+          "notes": "Adapted from the cc-1c-skills command surface for the packaged Unica skill.",
+          "upstreamPaths": [
+            ".claude/skills/form-patterns/**",
+            "docs/form-guide.md",
+            "docs/form-dsl-spec.md",
+            "docs/form-patterns.md",
+            "docs/1c-form-spec.md"
+          ],
+          "localPaths": [
+            "plugins/unica/skills/form-patterns"
+          ],
+          "contractPaths": [
+            "tests/ci/test_unica_skills.py"
+          ]
+        },
+        {
+          "skill": "form-remove",
+          "status": "ported-to-unica",
+          "notes": "Ported from the cc-1c-skills command surface and adapted to Unica MCP; local parity fixtures retain donor operation behavior.",
+          "upstreamPaths": [
+            ".claude/skills/form-remove/**",
+            "docs/form-guide.md",
+            "docs/form-dsl-spec.md",
+            "docs/form-patterns.md",
+            "docs/1c-form-spec.md"
+          ],
+          "localPaths": [
+            "plugins/unica/skills/form-remove",
+            "tests/fixtures/unica_mcp_script_parity/reference_skills/form-remove"
+          ],
+          "contractPaths": [
+            "tests/ci/test_unica_skills.py",
+            "tests/ci/test_unica_mcp_script_parity.py"
+          ]
+        },
+        {
+          "skill": "form-validate",
+          "status": "ported-to-unica",
+          "notes": "Ported from the cc-1c-skills command surface and adapted to Unica MCP; local parity fixtures retain donor operation behavior.",
+          "upstreamPaths": [
+            ".claude/skills/form-validate/**",
+            "docs/form-guide.md",
+            "docs/form-dsl-spec.md",
+            "docs/form-patterns.md",
+            "docs/1c-form-spec.md"
+          ],
+          "localPaths": [
+            "plugins/unica/skills/form-validate",
+            "tests/fixtures/unica_mcp_script_parity/reference_skills/form-validate"
+          ],
+          "contractPaths": [
+            "tests/ci/test_unica_skills.py",
+            "tests/ci/test_unica_mcp_script_parity.py"
+          ]
+        },
+        {
+          "skill": "help-add",
+          "status": "still-local-script",
+          "notes": "Adapted from the cc-1c-skills command surface for the packaged Unica skill.",
+          "upstreamPaths": [
+            ".claude/skills/help-add/**",
+            "docs/1c-help-spec.md"
+          ],
+          "localPaths": [
+            "plugins/unica/skills/help-add"
+          ],
+          "contractPaths": [
+            "tests/ci/test_unica_skills.py"
+          ]
+        },
+        {
+          "skill": "img-grid",
+          "status": "still-local-script",
+          "notes": "Adapted from the cc-1c-skills command surface for the packaged Unica skill.",
+          "upstreamPaths": [
+            ".claude/skills/img-grid/**",
+            "docs/mxl-guide.md",
+            "docs/mxl-dsl-spec.md",
+            "docs/1c-spreadsheet-spec.md"
+          ],
+          "localPaths": [
+            "plugins/unica/skills/img-grid"
+          ],
+          "contractPaths": [
+            "tests/ci/test_unica_skills.py"
+          ]
+        },
+        {
+          "skill": "interface-edit",
+          "status": "ported-to-unica",
+          "notes": "Ported from the cc-1c-skills command surface and adapted to Unica MCP; local parity fixtures retain donor operation behavior.",
+          "upstreamPaths": [
+            ".claude/skills/interface-edit/**",
+            "docs/subsystem-guide.md",
+            "docs/1c-subsystem-spec.md"
+          ],
+          "localPaths": [
+            "plugins/unica/skills/interface-edit",
+            "tests/fixtures/unica_mcp_script_parity/reference_skills/interface-edit"
+          ],
+          "contractPaths": [
+            "tests/ci/test_unica_skills.py",
+            "tests/ci/test_unica_mcp_script_parity.py"
+          ]
+        },
+        {
+          "skill": "interface-validate",
+          "status": "ported-to-unica",
+          "notes": "Ported from the cc-1c-skills command surface and adapted to Unica MCP; local parity fixtures retain donor operation behavior.",
+          "upstreamPaths": [
+            ".claude/skills/interface-validate/**",
+            "docs/subsystem-guide.md",
+            "docs/1c-subsystem-spec.md"
+          ],
+          "localPaths": [
+            "plugins/unica/skills/interface-validate",
+            "tests/fixtures/unica_mcp_script_parity/reference_skills/interface-validate"
+          ],
+          "contractPaths": [
+            "tests/ci/test_unica_skills.py",
+            "tests/ci/test_unica_mcp_script_parity.py"
+          ]
+        },
+        {
+          "skill": "meta-compile",
+          "status": "ported-to-unica",
+          "notes": "Ported from the cc-1c-skills command surface and adapted to Unica MCP; local parity fixtures retain donor operation behavior.",
+          "upstreamPaths": [
+            ".claude/skills/meta-compile/**",
+            "docs/meta-guide.md",
+            "docs/meta-dsl-spec.md",
+            "docs/1c-config-objects-spec.md"
+          ],
+          "localPaths": [
+            "plugins/unica/skills/meta-compile",
+            "tests/fixtures/unica_mcp_script_parity/reference_skills/meta-compile"
+          ],
+          "contractPaths": [
+            "tests/ci/test_unica_skills.py",
+            "tests/ci/test_unica_mcp_script_parity.py"
+          ]
+        },
+        {
+          "skill": "meta-edit",
+          "status": "ported-to-unica",
+          "notes": "Ported from the cc-1c-skills command surface and adapted to Unica MCP; local parity fixtures retain donor operation behavior.",
+          "upstreamPaths": [
+            ".claude/skills/meta-edit/**",
+            "docs/meta-guide.md",
+            "docs/meta-dsl-spec.md",
+            "docs/1c-config-objects-spec.md"
+          ],
+          "localPaths": [
+            "plugins/unica/skills/meta-edit",
+            "tests/fixtures/unica_mcp_script_parity/reference_skills/meta-edit"
+          ],
+          "contractPaths": [
+            "tests/ci/test_unica_skills.py",
+            "tests/ci/test_unica_mcp_script_parity.py"
+          ]
+        },
+        {
+          "skill": "meta-info",
+          "status": "ported-to-unica",
+          "notes": "Ported from the cc-1c-skills command surface and adapted to Unica MCP; local parity fixtures retain donor operation behavior.",
+          "upstreamPaths": [
+            ".claude/skills/meta-info/**",
+            "docs/meta-guide.md",
+            "docs/meta-dsl-spec.md",
+            "docs/1c-config-objects-spec.md"
+          ],
+          "localPaths": [
+            "plugins/unica/skills/meta-info",
+            "tests/fixtures/unica_mcp_script_parity/reference_skills/meta-info"
+          ],
+          "contractPaths": [
+            "tests/ci/test_unica_skills.py",
+            "tests/ci/test_unica_mcp_script_parity.py"
+          ]
+        },
+        {
+          "skill": "meta-remove",
+          "status": "ported-to-unica",
+          "notes": "Ported from the cc-1c-skills command surface and adapted to Unica MCP; local parity fixtures retain donor operation behavior.",
+          "upstreamPaths": [
+            ".claude/skills/meta-remove/**",
+            "docs/meta-guide.md",
+            "docs/meta-dsl-spec.md",
+            "docs/1c-config-objects-spec.md"
+          ],
+          "localPaths": [
+            "plugins/unica/skills/meta-remove",
+            "tests/fixtures/unica_mcp_script_parity/reference_skills/meta-remove"
+          ],
+          "contractPaths": [
+            "tests/ci/test_unica_skills.py",
+            "tests/ci/test_unica_mcp_script_parity.py"
+          ]
+        },
+        {
+          "skill": "meta-validate",
+          "status": "ported-to-unica",
+          "notes": "Ported from the cc-1c-skills command surface and adapted to Unica MCP; local parity fixtures retain donor operation behavior.",
+          "upstreamPaths": [
+            ".claude/skills/meta-validate/**",
+            "docs/meta-guide.md",
+            "docs/meta-dsl-spec.md",
+            "docs/1c-config-objects-spec.md"
+          ],
+          "localPaths": [
+            "plugins/unica/skills/meta-validate",
+            "tests/fixtures/unica_mcp_script_parity/reference_skills/meta-validate"
+          ],
+          "contractPaths": [
+            "tests/ci/test_unica_skills.py",
+            "tests/ci/test_unica_mcp_script_parity.py"
+          ]
+        },
+        {
+          "skill": "mxl-compile",
+          "status": "ported-to-unica",
+          "notes": "Ported from the cc-1c-skills command surface and adapted to Unica MCP; local parity fixtures retain donor operation behavior.",
+          "upstreamPaths": [
+            ".claude/skills/mxl-compile/**",
+            "docs/mxl-guide.md",
+            "docs/mxl-dsl-spec.md",
+            "docs/1c-spreadsheet-spec.md"
+          ],
+          "localPaths": [
+            "plugins/unica/skills/mxl-compile",
+            "tests/fixtures/unica_mcp_script_parity/reference_skills/mxl-compile"
+          ],
+          "contractPaths": [
+            "tests/ci/test_unica_skills.py",
+            "tests/ci/test_unica_mcp_script_parity.py"
+          ]
+        },
+        {
+          "skill": "mxl-decompile",
+          "status": "ported-to-unica",
+          "notes": "Ported from the cc-1c-skills command surface and adapted to Unica MCP; local parity fixtures retain donor operation behavior.",
+          "upstreamPaths": [
+            ".claude/skills/mxl-decompile/**",
+            "docs/mxl-guide.md",
+            "docs/mxl-dsl-spec.md",
+            "docs/1c-spreadsheet-spec.md"
+          ],
+          "localPaths": [
+            "plugins/unica/skills/mxl-decompile",
+            "tests/fixtures/unica_mcp_script_parity/reference_skills/mxl-decompile"
+          ],
+          "contractPaths": [
+            "tests/ci/test_unica_skills.py",
+            "tests/ci/test_unica_mcp_script_parity.py"
+          ]
+        },
+        {
+          "skill": "mxl-info",
+          "status": "ported-to-unica",
+          "notes": "Ported from the cc-1c-skills command surface and adapted to Unica MCP; local parity fixtures retain donor operation behavior.",
+          "upstreamPaths": [
+            ".claude/skills/mxl-info/**",
+            "docs/mxl-guide.md",
+            "docs/mxl-dsl-spec.md",
+            "docs/1c-spreadsheet-spec.md"
+          ],
+          "localPaths": [
+            "plugins/unica/skills/mxl-info",
+            "tests/fixtures/unica_mcp_script_parity/reference_skills/mxl-info"
+          ],
+          "contractPaths": [
+            "tests/ci/test_unica_skills.py",
+            "tests/ci/test_unica_mcp_script_parity.py"
+          ]
+        },
+        {
+          "skill": "mxl-validate",
+          "status": "ported-to-unica",
+          "notes": "Ported from the cc-1c-skills command surface and adapted to Unica MCP; local parity fixtures retain donor operation behavior.",
+          "upstreamPaths": [
+            ".claude/skills/mxl-validate/**",
+            "docs/mxl-guide.md",
+            "docs/mxl-dsl-spec.md",
+            "docs/1c-spreadsheet-spec.md"
+          ],
+          "localPaths": [
+            "plugins/unica/skills/mxl-validate",
+            "tests/fixtures/unica_mcp_script_parity/reference_skills/mxl-validate"
+          ],
+          "contractPaths": [
+            "tests/ci/test_unica_skills.py",
+            "tests/ci/test_unica_mcp_script_parity.py"
+          ]
+        },
+        {
+          "skill": "role-compile",
+          "status": "ported-to-unica",
+          "notes": "Ported from the cc-1c-skills command surface and adapted to Unica MCP; local parity fixtures retain donor operation behavior.",
+          "upstreamPaths": [
+            ".claude/skills/role-compile/**",
+            "docs/role-guide.md",
+            "docs/role-dsl-spec.md",
+            "docs/1c-role-spec.md"
+          ],
+          "localPaths": [
+            "plugins/unica/skills/role-compile",
+            "tests/fixtures/unica_mcp_script_parity/reference_skills/role-compile"
+          ],
+          "contractPaths": [
+            "tests/ci/test_unica_skills.py",
+            "tests/ci/test_unica_mcp_script_parity.py"
+          ]
+        },
+        {
+          "skill": "role-info",
+          "status": "ported-to-unica",
+          "notes": "Ported from the cc-1c-skills command surface and adapted to Unica MCP; local parity fixtures retain donor operation behavior.",
+          "upstreamPaths": [
+            ".claude/skills/role-info/**",
+            "docs/role-guide.md",
+            "docs/role-dsl-spec.md",
+            "docs/1c-role-spec.md"
+          ],
+          "localPaths": [
+            "plugins/unica/skills/role-info",
+            "tests/fixtures/unica_mcp_script_parity/reference_skills/role-info"
+          ],
+          "contractPaths": [
+            "tests/ci/test_unica_skills.py",
+            "tests/ci/test_unica_mcp_script_parity.py"
+          ]
+        },
+        {
+          "skill": "role-validate",
+          "status": "ported-to-unica",
+          "notes": "Ported from the cc-1c-skills command surface and adapted to Unica MCP; local parity fixtures retain donor operation behavior.",
+          "upstreamPaths": [
+            ".claude/skills/role-validate/**",
+            "docs/role-guide.md",
+            "docs/role-dsl-spec.md",
+            "docs/1c-role-spec.md"
+          ],
+          "localPaths": [
+            "plugins/unica/skills/role-validate",
+            "tests/fixtures/unica_mcp_script_parity/reference_skills/role-validate"
+          ],
+          "contractPaths": [
+            "tests/ci/test_unica_skills.py",
+            "tests/ci/test_unica_mcp_script_parity.py"
+          ]
+        },
+        {
+          "skill": "skd-compile",
+          "status": "ported-to-unica",
+          "notes": "Ported from the cc-1c-skills command surface and adapted to Unica MCP; local parity fixtures retain donor operation behavior.",
+          "upstreamPaths": [
+            ".claude/skills/skd-compile/**",
+            "docs/skd-guide.md",
+            "docs/skd-dsl-spec.md",
+            "docs/1c-dcs-spec.md"
+          ],
+          "localPaths": [
+            "plugins/unica/skills/skd-compile",
+            "tests/fixtures/unica_mcp_script_parity/reference_skills/skd-compile"
+          ],
+          "contractPaths": [
+            "tests/ci/test_unica_skills.py",
+            "tests/ci/test_unica_mcp_script_parity.py"
+          ]
+        },
+        {
+          "skill": "skd-edit",
+          "status": "ported-to-unica",
+          "notes": "Ported from the cc-1c-skills command surface and adapted to Unica MCP; local parity fixtures retain donor operation behavior.",
+          "upstreamPaths": [
+            ".claude/skills/skd-edit/**",
+            "docs/skd-guide.md",
+            "docs/skd-dsl-spec.md",
+            "docs/1c-dcs-spec.md"
+          ],
+          "localPaths": [
+            "plugins/unica/skills/skd-edit",
+            "tests/fixtures/unica_mcp_script_parity/reference_skills/skd-edit"
+          ],
+          "contractPaths": [
+            "tests/ci/test_unica_skills.py",
+            "tests/ci/test_unica_mcp_script_parity.py"
+          ]
+        },
+        {
+          "skill": "skd-info",
+          "status": "ported-to-unica",
+          "notes": "Ported from the cc-1c-skills command surface and adapted to Unica MCP; local parity fixtures retain donor operation behavior.",
+          "upstreamPaths": [
+            ".claude/skills/skd-info/**",
+            "docs/skd-guide.md",
+            "docs/skd-dsl-spec.md",
+            "docs/1c-dcs-spec.md"
+          ],
+          "localPaths": [
+            "plugins/unica/skills/skd-info",
+            "tests/fixtures/unica_mcp_script_parity/reference_skills/skd-info"
+          ],
+          "contractPaths": [
+            "tests/ci/test_unica_skills.py",
+            "tests/ci/test_unica_mcp_script_parity.py"
+          ]
+        },
+        {
+          "skill": "skd-validate",
+          "status": "ported-to-unica",
+          "notes": "Ported from the cc-1c-skills command surface and adapted to Unica MCP; local parity fixtures retain donor operation behavior.",
+          "upstreamPaths": [
+            ".claude/skills/skd-validate/**",
+            "docs/skd-guide.md",
+            "docs/skd-dsl-spec.md",
+            "docs/1c-dcs-spec.md"
+          ],
+          "localPaths": [
+            "plugins/unica/skills/skd-validate",
+            "tests/fixtures/unica_mcp_script_parity/reference_skills/skd-validate"
+          ],
+          "contractPaths": [
+            "tests/ci/test_unica_skills.py",
+            "tests/ci/test_unica_mcp_script_parity.py"
+          ]
+        },
+        {
+          "skill": "subsystem-compile",
+          "status": "ported-to-unica",
+          "notes": "Ported from the cc-1c-skills command surface and adapted to Unica MCP; local parity fixtures retain donor operation behavior.",
+          "upstreamPaths": [
+            ".claude/skills/subsystem-compile/**",
+            "docs/subsystem-guide.md",
+            "docs/1c-subsystem-spec.md"
+          ],
+          "localPaths": [
+            "plugins/unica/skills/subsystem-compile",
+            "tests/fixtures/unica_mcp_script_parity/reference_skills/subsystem-compile"
+          ],
+          "contractPaths": [
+            "tests/ci/test_unica_skills.py",
+            "tests/ci/test_unica_mcp_script_parity.py"
+          ]
+        },
+        {
+          "skill": "subsystem-edit",
+          "status": "ported-to-unica",
+          "notes": "Ported from the cc-1c-skills command surface and adapted to Unica MCP; local parity fixtures retain donor operation behavior.",
+          "upstreamPaths": [
+            ".claude/skills/subsystem-edit/**",
+            "docs/subsystem-guide.md",
+            "docs/1c-subsystem-spec.md"
+          ],
+          "localPaths": [
+            "plugins/unica/skills/subsystem-edit",
+            "tests/fixtures/unica_mcp_script_parity/reference_skills/subsystem-edit"
+          ],
+          "contractPaths": [
+            "tests/ci/test_unica_skills.py",
+            "tests/ci/test_unica_mcp_script_parity.py"
+          ]
+        },
+        {
+          "skill": "subsystem-info",
+          "status": "ported-to-unica",
+          "notes": "Ported from the cc-1c-skills command surface and adapted to Unica MCP; local parity fixtures retain donor operation behavior.",
+          "upstreamPaths": [
+            ".claude/skills/subsystem-info/**",
+            "docs/subsystem-guide.md",
+            "docs/1c-subsystem-spec.md"
+          ],
+          "localPaths": [
+            "plugins/unica/skills/subsystem-info",
+            "tests/fixtures/unica_mcp_script_parity/reference_skills/subsystem-info"
+          ],
+          "contractPaths": [
+            "tests/ci/test_unica_skills.py",
+            "tests/ci/test_unica_mcp_script_parity.py"
+          ]
+        },
+        {
+          "skill": "subsystem-validate",
+          "status": "ported-to-unica",
+          "notes": "Ported from the cc-1c-skills command surface and adapted to Unica MCP; local parity fixtures retain donor operation behavior.",
+          "upstreamPaths": [
+            ".claude/skills/subsystem-validate/**",
+            "docs/subsystem-guide.md",
+            "docs/1c-subsystem-spec.md"
+          ],
+          "localPaths": [
+            "plugins/unica/skills/subsystem-validate",
+            "tests/fixtures/unica_mcp_script_parity/reference_skills/subsystem-validate"
+          ],
+          "contractPaths": [
+            "tests/ci/test_unica_skills.py",
+            "tests/ci/test_unica_mcp_script_parity.py"
+          ]
+        },
+        {
+          "skill": "template-add",
+          "status": "ported-to-unica",
+          "notes": "Ported from the cc-1c-skills command surface and adapted to Unica MCP; local parity fixtures retain donor operation behavior.",
+          "upstreamPaths": [
+            ".claude/skills/template-add/**",
+            "docs/meta-guide.md",
+            "docs/1c-config-objects-spec.md"
+          ],
+          "localPaths": [
+            "plugins/unica/skills/template-add",
+            "tests/fixtures/unica_mcp_script_parity/reference_skills/template-add"
+          ],
+          "contractPaths": [
+            "tests/ci/test_unica_skills.py",
+            "tests/ci/test_unica_mcp_script_parity.py"
+          ]
+        },
+        {
+          "skill": "template-remove",
+          "status": "ported-to-unica",
+          "notes": "Ported from the cc-1c-skills command surface and adapted to Unica MCP; local parity fixtures retain donor operation behavior.",
+          "upstreamPaths": [
+            ".claude/skills/template-remove/**",
+            "docs/meta-guide.md",
+            "docs/1c-config-objects-spec.md"
+          ],
+          "localPaths": [
+            "plugins/unica/skills/template-remove",
+            "tests/fixtures/unica_mcp_script_parity/reference_skills/template-remove"
+          ],
+          "contractPaths": [
+            "tests/ci/test_unica_skills.py",
+            "tests/ci/test_unica_mcp_script_parity.py"
+          ]
+        },
+        {
+          "skill": "web-test",
+          "status": "still-local-script",
+          "notes": "Adapted from the cc-1c-skills command surface for the packaged Unica skill.",
+          "upstreamPaths": [
+            ".claude/skills/web-test/**",
+            "docs/web-test-guide.md",
+            "docs/web-test-recording-guide.md",
+            "docs/web-test-regression-guide.md",
+            "docs/web-test-regression-spec.md",
+            "docs/web-spec.md"
+          ],
+          "localPaths": [
+            "plugins/unica/skills/web-test"
+          ],
+          "contractPaths": [
+            "tests/ci/test_unica_skills.py"
+          ]
+        }
+      ],
+      "lastAdaptedLocalCommit": "795505f2243cf3c93a95918467f99135af758e1b",
+      "lastAdaptedAt": "2026-05-04T07:38:11+07:00",
+      "baselineSelection": "donor head at or before the local v9 adaptation commit timestamp"
+    },
+    {
+      "id": "ai-rules-1c",
+      "repository": "https://github.com/comol/ai_rules_1c",
+      "trackingRef": "main",
+      "role": "guidance",
+      "baselineCommit": "484e550043a4cb749d59d0671329f3112e3ae668",
+      "entries": [
+        {
+          "skill": "api-design",
+          "status": "adapted",
+          "notes": "Guidance adapted from ai-rules-1c and rewritten for Unica skill routing through public unica.* MCP tools.",
+          "upstreamPaths": [
+            "content/agents/architect.md",
+            "content/agents/arch-reviewer.md",
+            "content/rules/dev-standards-architecture.md",
+            "content/rules/dev-standards-core.md"
+          ],
+          "localPaths": [
+            "plugins/unica/skills/api-design"
+          ],
+          "contractPaths": [
+            "tests/ci/test_unica_skills.py"
+          ]
+        },
+        {
+          "skill": "background-jobs",
+          "status": "adapted",
+          "notes": "Guidance adapted from ai-rules-1c and rewritten for Unica skill routing through public unica.* MCP tools.",
+          "upstreamPaths": [
+            "content/rules/async-methods.md",
+            "content/rules/locks-and-transactions.md",
+            "content/rules/logging-strategy.md",
+            "content/rules/verification-checklist.md"
+          ],
+          "localPaths": [
+            "plugins/unica/skills/background-jobs"
+          ],
+          "contractPaths": [
+            "tests/ci/test_unica_skills.py"
+          ]
+        },
+        {
+          "skill": "bsp-patterns",
+          "status": "adapted",
+          "notes": "Guidance adapted from ai-rules-1c and rewritten for Unica skill routing through public unica.* MCP tools.",
+          "upstreamPaths": [
+            "content/rules/platform-solutions.md",
+            "content/rules/tooling-playbooks.md",
+            "content/rules/integrations-add.md",
+            "content/rules/dev-standards-core.md"
+          ],
+          "localPaths": [
+            "plugins/unica/skills/bsp-patterns"
+          ],
+          "contractPaths": [
+            "tests/ci/test_unica_skills.py"
+          ]
+        },
+        {
+          "skill": "code-diagnostics",
+          "status": "adapted",
+          "notes": "Guidance adapted from ai-rules-1c and rewritten for Unica skill routing through public unica.* MCP tools.",
+          "upstreamPaths": [
+            "content/commands/doctor.md",
+            "content/commands/checkmcp.md",
+            "content/rules/verification-checklist.md",
+            "content/agents/error-fixer.md"
+          ],
+          "localPaths": [
+            "plugins/unica/skills/code-diagnostics"
+          ],
+          "contractPaths": [
+            "tests/ci/test_unica_skills.py"
+          ]
+        },
+        {
+          "skill": "code-review",
+          "status": "adapted",
+          "notes": "Guidance adapted from ai-rules-1c and rewritten for Unica skill routing through public unica.* MCP tools.",
+          "upstreamPaths": [
+            "content/agents/code-reviewer.md",
+            "content/rules/anti-patterns.md",
+            "content/rules/coding-standards.md",
+            "content/rules/verification-checklist.md"
+          ],
+          "localPaths": [
+            "plugins/unica/skills/code-review"
+          ],
+          "contractPaths": [
+            "tests/ci/test_unica_skills.py"
+          ]
+        },
+        {
+          "skill": "code-search",
+          "status": "adapted",
+          "notes": "Guidance adapted from ai-rules-1c and rewritten for Unica skill routing through public unica.* MCP tools.",
+          "upstreamPaths": [
+            "content/agents/explorer.md",
+            "content/rules/mcp-first-search.md",
+            "content/skills/mcp-1c-tools/**"
+          ],
+          "localPaths": [
+            "plugins/unica/skills/code-search"
+          ],
+          "contractPaths": [
+            "tests/ci/test_unica_skills.py"
+          ]
+        },
+        {
+          "skill": "data-exchange",
+          "status": "adapted",
+          "notes": "Guidance adapted from ai-rules-1c and rewritten for Unica skill routing through public unica.* MCP tools.",
+          "upstreamPaths": [
+            "content/rules/integrations-add.md",
+            "content/rules/registers-design.md",
+            "content/rules/dev-standards-architecture.md"
+          ],
+          "localPaths": [
+            "plugins/unica/skills/data-exchange"
+          ],
+          "contractPaths": [
+            "tests/ci/test_unica_skills.py"
+          ]
+        },
+        {
+          "skill": "data-separation",
+          "status": "adapted",
+          "notes": "Guidance adapted from ai-rules-1c and rewritten for Unica skill routing through public unica.* MCP tools.",
+          "upstreamPaths": [
+            "content/rules/dev-standards-architecture.md",
+            "content/rules/dev-standards-core.md",
+            "content/rules/registers-design.md",
+            "content/rules/integrations-add.md"
+          ],
+          "localPaths": [
+            "plugins/unica/skills/data-separation"
+          ],
+          "contractPaths": [
+            "tests/ci/test_unica_skills.py"
+          ]
+        },
+        {
+          "skill": "db-performance",
+          "status": "adapted",
+          "notes": "Guidance adapted from ai-rules-1c and rewritten for Unica skill routing through public unica.* MCP tools.",
+          "upstreamPaths": [
+            "content/agents/performance-optimizer.md",
+            "content/rules/dcs-design.md",
+            "content/rules/locks-and-transactions.md"
+          ],
+          "localPaths": [
+            "plugins/unica/skills/db-performance"
+          ],
+          "contractPaths": [
+            "tests/ci/test_unica_skills.py"
+          ]
+        },
+        {
+          "skill": "img-grid",
+          "status": "adapted",
+          "notes": "Guidance adapted from ai-rules-1c and rewritten for Unica skill routing through public unica.* MCP tools.",
+          "upstreamPaths": [
+            "content/skills/img-grid-analysis/**"
+          ],
+          "localPaths": [
+            "plugins/unica/skills/img-grid"
+          ],
+          "contractPaths": [
+            "tests/ci/test_unica_skills.py"
+          ]
+        },
+        {
+          "skill": "integration-implement",
+          "status": "adapted",
+          "notes": "Guidance adapted from ai-rules-1c and rewritten for Unica skill routing through public unica.* MCP tools.",
+          "upstreamPaths": [
+            "content/rules/integrations-add.md",
+            "content/rules/sdd-integrations.md",
+            "content/rules/dev-standards-architecture.md"
+          ],
+          "localPaths": [
+            "plugins/unica/skills/integration-implement"
+          ],
+          "contractPaths": [
+            "tests/ci/test_unica_skills.py"
+          ]
+        },
+        {
+          "skill": "log-analysis",
+          "status": "adapted",
+          "notes": "Guidance adapted from ai-rules-1c and rewritten for Unica skill routing through public unica.* MCP tools.",
+          "upstreamPaths": [
+            "content/rules/logging-strategy.md",
+            "content/agents/performance-optimizer.md",
+            "content/rules/locks-and-transactions.md"
+          ],
+          "localPaths": [
+            "plugins/unica/skills/log-analysis"
+          ],
+          "contractPaths": [
+            "tests/ci/test_unica_skills.py"
+          ]
+        },
+        {
+          "skill": "platform-help",
+          "status": "adapted",
+          "notes": "Guidance adapted from ai-rules-1c and rewritten for Unica skill routing through public unica.* MCP tools.",
+          "upstreamPaths": [
+            "content/rules/platform-solutions.md",
+            "content/rules/dev-standards-core.md",
+            "content/skills/mcp-1c-tools/**"
+          ],
+          "localPaths": [
+            "plugins/unica/skills/platform-help"
+          ],
+          "contractPaths": [
+            "tests/ci/test_unica_skills.py"
+          ]
+        },
+        {
+          "skill": "query-optimize",
+          "status": "adapted",
+          "notes": "Guidance adapted from ai-rules-1c and rewritten for Unica skill routing through public unica.* MCP tools.",
+          "upstreamPaths": [
+            "content/agents/performance-optimizer.md",
+            "content/rules/dcs-design.md",
+            "content/rules/locks-and-transactions.md"
+          ],
+          "localPaths": [
+            "plugins/unica/skills/query-optimize"
+          ],
+          "contractPaths": [
+            "tests/ci/test_unica_skills.py"
+          ]
+        },
+        {
+          "skill": "release-support",
+          "status": "adapted",
+          "notes": "Guidance adapted from ai-rules-1c and rewritten for Unica skill routing through public unica.* MCP tools.",
+          "upstreamPaths": [
+            "content/rules/extension-patterns.md",
+            "content/rules/verification-checklist.md",
+            "content/rules/dev-standards-architecture.md"
+          ],
+          "localPaths": [
+            "plugins/unica/skills/release-support"
+          ],
+          "contractPaths": [
+            "tests/ci/test_unica_skills.py"
+          ]
+        },
+        {
+          "skill": "security-auth-crypto",
+          "status": "adapted",
+          "notes": "Guidance adapted from ai-rules-1c and rewritten for Unica skill routing through public unica.* MCP tools.",
+          "upstreamPaths": [
+            "content/rules/integrations-add.md",
+            "content/rules/dev-standards-core.md",
+            "content/rules/locks-and-transactions.md"
+          ],
+          "localPaths": [
+            "plugins/unica/skills/security-auth-crypto"
+          ],
+          "contractPaths": [
+            "tests/ci/test_unica_skills.py"
+          ]
+        },
+        {
+          "skill": "test-authoring",
+          "status": "adapted",
+          "notes": "Guidance adapted from ai-rules-1c and rewritten for Unica skill routing through public unica.* MCP tools.",
+          "upstreamPaths": [
+            "content/agents/tester.md",
+            "content/rules/verification-checklist.md",
+            "content/commands/deploy-and-test.md",
+            "content/commands/checkmcp.md"
+          ],
+          "localPaths": [
+            "plugins/unica/skills/test-authoring"
+          ],
+          "contractPaths": [
+            "tests/ci/test_unica_skills.py"
+          ]
+        }
+      ],
+      "lastAdaptedLocalCommit": "e5b4eeab4dac92e0c9f60d3f886aa2bb7ef79f80",
+      "lastAdaptedAt": "2026-05-04T23:48:32+07:00",
+      "baselineSelection": "latest donor commit before the local v17/v18 guidance adaptation window"
+    },
+    {
+      "id": "v8-runner-rust",
+      "repository": "https://github.com/alkoleft/v8-runner-rust",
+      "trackingRef": "master",
+      "role": "runtime-tool-contract",
+      "toolLockRef": "v8-runner",
+      "entries": [
+        {
+          "skill": "autonomous-server",
+          "status": "superseded-by-unica-mcp",
+          "notes": "Runtime workflow and contract depend on v8-runner-rust, but Unica exposes it through typed MCP unica.runtime.execute instead of direct runner CLI guidance.",
+          "upstreamPaths": [
+            "README.md",
+            "docs/**",
+            "src/**",
+            "crates/**"
+          ],
+          "localPaths": [
+            "plugins/unica/skills/autonomous-server"
+          ],
+          "contractPaths": [
+            "crates/unica-coder/src/application/tool_contracts.rs",
+            "crates/unica-coder/src/infrastructure/internal_adapters.rs",
+            "tests/ci/test_unica_skills.py",
+            "tests/ci/test_unica_mcp_smoke.py"
+          ]
+        },
+        {
+          "skill": "db-auth-check",
+          "status": "superseded-by-unica-mcp",
+          "notes": "Runtime workflow and contract depend on v8-runner-rust, but Unica exposes it through typed MCP unica.runtime.execute instead of direct runner CLI guidance.",
+          "upstreamPaths": [
+            "README.md",
+            "docs/**",
+            "src/**",
+            "crates/**"
+          ],
+          "localPaths": [
+            "plugins/unica/skills/db-auth-check"
+          ],
+          "contractPaths": [
+            "crates/unica-coder/src/application/tool_contracts.rs",
+            "crates/unica-coder/src/infrastructure/internal_adapters.rs",
+            "tests/ci/test_unica_skills.py",
+            "tests/ci/test_unica_mcp_smoke.py"
+          ]
+        },
+        {
+          "skill": "v8-runner",
+          "status": "superseded-by-unica-mcp",
+          "notes": "Runtime workflow and contract depend on v8-runner-rust, but Unica exposes it through typed MCP unica.runtime.execute instead of direct runner CLI guidance.",
+          "upstreamPaths": [
+            "README.md",
+            "docs/**",
+            "src/**",
+            "crates/**"
+          ],
+          "localPaths": [
+            "plugins/unica/skills/v8-runner"
+          ],
+          "contractPaths": [
+            "crates/unica-coder/src/application/tool_contracts.rs",
+            "crates/unica-coder/src/infrastructure/internal_adapters.rs",
+            "tests/ci/test_unica_skills.py",
+            "tests/ci/test_unica_mcp_smoke.py"
+          ]
+        }
+      ],
+      "lastAdaptedLocalCommit": "db254e42af00c248ec33346ba64076bbf5d37b71",
+      "lastAdaptedAt": "2026-05-13T15:37:00+05:00",
+      "baselineSelection": "toolLockRef v8-runner commit from tools.lock.json"
+    }
+  ]
+}
