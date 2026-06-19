@@ -2365,6 +2365,7 @@ mod tests {
             stdout: stdout.into(),
             stderr: String::new(),
             timed_out: false,
+            duration_ms: 0,
         }
     }
 

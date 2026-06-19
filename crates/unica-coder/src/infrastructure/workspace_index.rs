@@ -36,6 +36,25 @@ pub struct BslIndexStatus {
     pub db_path: Option<String>,
     pub message: Option<String>,
     pub updated_at: u64,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub last_run: Option<BslIndexRunMetrics>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct BslIndexRunMetrics {
+    pub action: String,
+    pub duration_ms: u64,
+    pub started_at: u64,
+    pub finished_at: u64,
+    pub timed_out: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub index_version: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub modules: Option<u64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub methods: Option<u64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub db_size: Option<String>,
 }
 
 #[derive(Debug, Clone)]
@@ -54,6 +73,7 @@ pub struct IndexOutput {
     pub stdout: String,
     pub stderr: String,
     pub timed_out: bool,
+    pub duration_ms: u64,
 }
 
 #[derive(Debug, Clone)]
@@ -140,7 +160,10 @@ impl<'a> WorkspaceIndexService<'a> {
         let readiness = readiness_from_info(&info);
         match readiness {
             IndexReadiness::Ready { db_path } => {
-                let _ = write_status(context, BslIndexStatus::ready(&source_root, &db_path));
+                let _ = write_status(
+                    context,
+                    ready_status_preserving_last_run(context, &source_root, &db_path),
+                );
                 IndexStartReport::default()
             }
             IndexReadiness::Missing => self.start_background(
@@ -197,7 +220,10 @@ impl<'a> WorkspaceIndexService<'a> {
 
         match readiness_from_info(&output) {
             IndexReadiness::Ready { db_path } => {
-                let _ = write_status(context, BslIndexStatus::ready(&source_root, &db_path));
+                let _ = write_status(
+                    context,
+                    ready_status_preserving_last_run(context, &source_root, &db_path),
+                );
                 IndexReadiness::Ready { db_path }
             }
             other => other,
@@ -338,6 +364,7 @@ impl BslIndexStatus {
             db_path: Some(db_path.display().to_string()),
             message: None,
             updated_at: now_secs(),
+            last_run: None,
         }
     }
 
@@ -348,6 +375,7 @@ impl BslIndexStatus {
             db_path: None,
             message: Some(format!("rlm index {action} started")),
             updated_at: now_secs(),
+            last_run: None,
         }
     }
 
@@ -358,6 +386,7 @@ impl BslIndexStatus {
             db_path: None,
             message: Some(message.to_string()),
             updated_at: now_secs(),
+            last_run: None,
         }
     }
 
@@ -368,6 +397,29 @@ impl BslIndexStatus {
             db_path: None,
             message: Some(message.to_string()),
             updated_at: now_secs(),
+            last_run: None,
+        }
+    }
+
+    fn with_last_run(mut self, metrics: BslIndexRunMetrics) -> Self {
+        self.last_run = Some(metrics);
+        self
+    }
+}
+
+impl BslIndexRunMetrics {
+    fn from_output(action: &str, started_at: u64, finished_at: u64, output: &IndexOutput) -> Self {
+        Self {
+            action: action.to_string(),
+            duration_ms: output.duration_ms,
+            started_at,
+            finished_at,
+            timed_out: output.timed_out,
+            index_version: parse_info_value(&output.stdout, "Index")
+                .filter(|value| value.starts_with('v')),
+            modules: parse_u64_info_value(&output.stdout, "Modules"),
+            methods: parse_u64_info_value(&output.stdout, "Methods"),
+            db_size: parse_info_value(&output.stdout, "DB size"),
         }
     }
 }
@@ -387,35 +439,46 @@ impl IndexRunner for SystemIndexRunner {
 }
 
 fn run_background_job(job: IndexBackgroundJob) {
+    let started_at = now_secs();
     let result = run_index_command(&job.primary);
+    let finished_at = now_secs();
     match result {
-        Ok(output) if output.status_success => match run_index_command(&job.info) {
-            Ok(info) => match readiness_from_info(&info) {
-                IndexReadiness::Ready { db_path } => {
+        Ok(output) if output.status_success => {
+            let metrics =
+                BslIndexRunMetrics::from_output(&job.action, started_at, finished_at, &output);
+            match run_index_command(&job.info) {
+                Ok(info) => match readiness_from_info(&info) {
+                    IndexReadiness::Ready { db_path } => {
+                        let _ = write_status_path(
+                            &job.status_path,
+                            BslIndexStatus::ready(&job.source_root, &db_path)
+                                .with_last_run(metrics),
+                        );
+                    }
+                    other => {
+                        let _ = write_status_path(
+                            &job.status_path,
+                            BslIndexStatus::failed(
+                                format!("rlm index {} finished but info is {other:?}", job.action)
+                                    .as_str(),
+                                Some(&job.source_root),
+                            )
+                            .with_last_run(metrics),
+                        );
+                    }
+                },
+                Err(error) => {
                     let _ = write_status_path(
                         &job.status_path,
-                        BslIndexStatus::ready(&job.source_root, &db_path),
+                        BslIndexStatus::failed(error.as_str(), Some(&job.source_root))
+                            .with_last_run(metrics),
                     );
                 }
-                other => {
-                    let _ = write_status_path(
-                        &job.status_path,
-                        BslIndexStatus::failed(
-                            format!("rlm index {} finished but info is {other:?}", job.action)
-                                .as_str(),
-                            Some(&job.source_root),
-                        ),
-                    );
-                }
-            },
-            Err(error) => {
-                let _ = write_status_path(
-                    &job.status_path,
-                    BslIndexStatus::failed(error.as_str(), Some(&job.source_root)),
-                );
             }
-        },
+        }
         Ok(output) => {
+            let metrics =
+                BslIndexRunMetrics::from_output(&job.action, started_at, finished_at, &output);
             let message = if output.timed_out {
                 format!("rlm index {} timed out", job.action)
             } else {
@@ -428,7 +491,8 @@ fn run_background_job(job: IndexBackgroundJob) {
             };
             let _ = write_status_path(
                 &job.status_path,
-                BslIndexStatus::failed(message.as_str(), Some(&job.source_root)),
+                BslIndexStatus::failed(message.as_str(), Some(&job.source_root))
+                    .with_last_run(metrics),
             );
         }
         Err(error) => {
@@ -467,6 +531,7 @@ fn run_index_command(command: &IndexCommand) -> Result<IndexOutput, String> {
                 stdout: String::from_utf8_lossy(&output.stdout).into_owned(),
                 stderr: String::from_utf8_lossy(&output.stderr).into_owned(),
                 timed_out: false,
+                duration_ms: duration_ms(started.elapsed()),
             });
         }
 
@@ -481,6 +546,7 @@ fn run_index_command(command: &IndexCommand) -> Result<IndexOutput, String> {
                 stdout: String::from_utf8_lossy(&output.stdout).into_owned(),
                 stderr: String::from_utf8_lossy(&output.stderr).into_owned(),
                 timed_out: true,
+                duration_ms: duration_ms(started.elapsed()),
             });
         }
 
@@ -522,6 +588,19 @@ fn parse_info_value(stdout: &str, key: &str) -> Option<String> {
     })
 }
 
+fn parse_u64_info_value(stdout: &str, key: &str) -> Option<u64> {
+    let value = parse_info_value(stdout, key)?;
+    let digits: String = value.chars().filter(char::is_ascii_digit).collect();
+    if digits.is_empty() {
+        return None;
+    }
+    digits.parse().ok()
+}
+
+fn duration_ms(duration: Duration) -> u64 {
+    duration.as_millis().try_into().unwrap_or(u64::MAX)
+}
+
 pub fn read_bsl_index_status(context: &WorkspaceContext) -> Option<BslIndexStatus> {
     let text = fs::read_to_string(status_path(context)).ok()?;
     serde_json::from_str(&text).ok()
@@ -554,6 +633,26 @@ fn active_lock(context: &WorkspaceContext) -> bool {
 
 fn write_status(context: &WorkspaceContext, status: BslIndexStatus) -> Result<(), String> {
     write_status_path(&status_path(context), status)
+}
+
+fn ready_status_preserving_last_run(
+    context: &WorkspaceContext,
+    source_root: &Path,
+    db_path: &Path,
+) -> BslIndexStatus {
+    let mut status = BslIndexStatus::ready(source_root, db_path);
+    let source_root_display = source_root.display().to_string();
+    let db_path_display = db_path.display().to_string();
+    status.last_run = read_bsl_index_status(context).and_then(|existing| {
+        let same_index = existing.source_root.as_deref() == Some(source_root_display.as_str())
+            && existing.db_path.as_deref() == Some(db_path_display.as_str());
+        if same_index {
+            existing.last_run
+        } else {
+            None
+        }
+    });
+    status
 }
 
 fn write_status_path(path: &Path, status: BslIndexStatus) -> Result<(), String> {
@@ -711,6 +810,52 @@ mod tests {
     }
 
     #[test]
+    fn ready_info_preserves_existing_last_run_metrics() {
+        let context = test_context("ready-metrics");
+        fs::create_dir_all(context.workspace_root.join("src/CommonModules")).unwrap();
+        let db_path = context.cache_root.join("rlm-tools-bsl/a/bsl_index.db");
+        fs::create_dir_all(db_path.parent().unwrap()).unwrap();
+        fs::write(&db_path, "").unwrap();
+        write_status(
+            &context,
+            BslIndexStatus::ready(&context.workspace_root.join("src"), &db_path).with_last_run(
+                BslIndexRunMetrics {
+                    action: "build".to_string(),
+                    duration_ms: 1234,
+                    started_at: 10,
+                    finished_at: 11,
+                    timed_out: false,
+                    index_version: Some("v14".to_string()),
+                    modules: Some(24),
+                    methods: Some(617),
+                    db_size: Some("1.3 MB".to_string()),
+                },
+            ),
+        )
+        .unwrap();
+        let runner = RecordingIndexRunner {
+            outputs: RefCell::new(vec![IndexOutput::success(format!(
+                "Index: {}\n  Status:   fresh\n",
+                db_path.display()
+            ))]),
+            ..Default::default()
+        };
+        let service = WorkspaceIndexService::with_runner(&runner);
+
+        let report = service.start_for_workspace(&context, &Map::new(), false);
+
+        assert!(report.warnings.is_empty());
+        let status = read_bsl_index_status(&context).unwrap();
+        let metrics = status
+            .last_run
+            .expect("fresh info should not erase existing index metrics");
+        assert_eq!(metrics.action, "build");
+        assert_eq!(metrics.duration_ms, 1234);
+        assert_eq!(metrics.index_version.as_deref(), Some("v14"));
+        cleanup(&context);
+    }
+
+    #[test]
     fn stale_index_starts_background_update() {
         let context = test_context("stale");
         fs::create_dir_all(context.workspace_root.join("src/CommonModules")).unwrap();
@@ -729,6 +874,54 @@ mod tests {
             runner.backgrounds.borrow()[0].primary.args[0..2],
             ["index", "update"]
         );
+        cleanup(&context);
+    }
+
+    #[test]
+    fn successful_background_job_records_last_run_metrics_in_status() {
+        let context = test_context("metrics");
+        let db_path = context.cache_root.join("rlm-tools-bsl/a/bsl_index.db");
+        fs::create_dir_all(db_path.parent().unwrap()).unwrap();
+        fs::write(&db_path, "").unwrap();
+        let status = status_path(&context);
+        let lock = lock_path(&context);
+        fs::create_dir_all(lock.parent().unwrap()).unwrap();
+        fs::write(&lock, "").unwrap();
+
+        run_background_job(IndexBackgroundJob {
+            action: "build".to_string(),
+            source_root: context.workspace_root.join("src"),
+            primary: shell_command(
+                &context.workspace_root,
+                "sleep 0.01; printf '%s\n' 'Index built in 1.2s' '  Index:    v14' '  Modules:  24' '  Methods:  617' '  DB size:  1.3 MB'",
+            ),
+            info: shell_command(
+                &context.workspace_root,
+                format!(
+                    "printf '%s\n' 'Index: {}' '  Status:   fresh'",
+                    db_path.display()
+                ),
+            ),
+            status_path: status.clone(),
+            lock_path: lock.clone(),
+        });
+
+        let value: serde_json::Value =
+            serde_json::from_str(&fs::read_to_string(&status).unwrap()).unwrap();
+        let metrics = value
+            .get("last_run")
+            .expect("ready status should include last_run metrics");
+        assert_eq!(metrics["action"], "build");
+        assert_eq!(metrics["timed_out"], false);
+        assert!(metrics["duration_ms"].as_u64().unwrap() > 0);
+        assert!(
+            metrics["finished_at"].as_u64().unwrap() >= metrics["started_at"].as_u64().unwrap()
+        );
+        assert_eq!(metrics["index_version"], "v14");
+        assert_eq!(metrics["modules"], 24);
+        assert_eq!(metrics["methods"], 617);
+        assert_eq!(metrics["db_size"], "1.3 MB");
+        assert!(!lock.exists());
         cleanup(&context);
     }
 
@@ -762,7 +955,18 @@ mod tests {
                 stdout: stdout.into(),
                 stderr: String::new(),
                 timed_out: false,
+                duration_ms: 0,
             }
+        }
+    }
+
+    fn shell_command(cwd: &Path, script: impl Into<String>) -> IndexCommand {
+        IndexCommand {
+            program: PathBuf::from("/bin/sh"),
+            args: vec!["-c".to_string(), script.into()],
+            cwd: cwd.to_path_buf(),
+            env: Vec::new(),
+            timeout: Duration::from_secs(5),
         }
     }
 
