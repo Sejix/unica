@@ -7,7 +7,7 @@ description: "Поиск и исследование BSL-кода и точек 
 
 ## MCP routing
 
-- Preferred path: use MCP `unica` tools `unica.code.search`, `unica.code.definition`, `unica.code.outline`, `unica.code.grep`, and `unica.project.map`.
+- Preferred path: use MCP `unica` tools `unica.code.search`, `unica.code.definition`, `unica.code.outline`, `unica.code.grep`, `unica.code.graph`, and `unica.project.map`.
 - Use object-specific `unica.*.info` tools when code behavior depends on metadata, forms, SKD, roles, or HTTP service structure.
 - Do not call internal code-index, analyzer, or package adapters directly. They are hidden behind MCP `unica`.
 
@@ -16,17 +16,19 @@ description: "Поиск и исследование BSL-кода и точек 
 - Use `unica.code.definition` for an exact procedure/function definition by name, especially exported methods.
 - Use `unica.code.outline` before reading a large module; it gives regions, header context, and method ranges.
 - Use `unica.code.grep` for arbitrary text, XML, query fragments, string literals, captions, and non-method tokens.
+- Use `unica.code.graph` for callers, callees, neighbors, graph overview, and impact analysis when a method or metadata node id is known or can be resolved.
 - Use `unica.code.search` for broad BSL search and mixed analyzer/index results.
 
 ## Workflow
 
 1. Map the workspace with `unica.project.map` when the active source-set or source format is unclear.
 2. Resolve exact method names with `unica.code.definition`; inspect large candidate modules with `unica.code.outline`.
-3. Search exact identifiers next: object names, module names, event handlers, exported procedures, command names, URL templates.
-4. Use `unica.code.grep` for raw text fragments that are not BSL method names.
-5. Broaden only after exact search fails: synonyms, business terms, common module prefixes, form command captions.
-6. For every result, separate declaration, caller, handler, and dead-looking match. Do not infer flow from one hit.
-7. Report concrete file paths and line anchors; include the query that produced each important hit when the search was non-obvious.
+3. For flow questions, resolve the node and ask `unica.code.graph` for callers, callees, or neighbors before treating lexical hits as execution flow.
+4. Search exact identifiers next: object names, module names, event handlers, exported procedures, command names, URL templates.
+5. Use `unica.code.grep` for raw text fragments that are not BSL method names.
+6. Broaden only after exact search fails: synonyms, business terms, common module prefixes, form command captions.
+7. For every result, separate declaration, caller, handler, graph edge, and dead-looking match. Do not infer flow from one hit.
+8. Report concrete file paths and line anchors; include the query that produced each important hit when the search was non-obvious.
 
 ## Common searches
 
@@ -60,6 +62,22 @@ description: "Поиск и исследование BSL-кода и точек 
       "cwd": "<workspace>",
       "query": "ОбработкаПроведения",
       "limit": 20
+    }
+  }
+}
+```
+
+```json
+{
+  "jsonrpc": "2.0",
+  "method": "tools/call",
+  "params": {
+    "name": "unica.code.graph",
+    "arguments": {
+      "cwd": "<workspace>",
+      "mode": "callers",
+      "id": "method:CommonModule.Продажи.ОбработкаПроведения",
+      "limit": 25
     }
   }
 }

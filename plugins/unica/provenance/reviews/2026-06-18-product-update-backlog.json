@@ -7,35 +7,35 @@
     {
       "id": "bsl-analyzer",
       "kind": "bundled-tool",
-      "locked": "v0.1.181",
+      "locked": "v0.2.37",
       "latest": "v0.2.37",
       "risk": "high",
       "batch": "bsl-analyzer-contract",
-      "status": "needs-contract-review",
+      "status": "applied",
       "contractGate": true,
-      "notes": "Verify analyze/search/MCP profile CLI before updating tools.lock.json."
+      "notes": "Updated tools.lock.json to v0.2.37; analyze/search/MCP help gates passed, graph and diagnostics capabilities are exposed only through typed unica.code.* tools."
     },
     {
       "id": "rlm-tools-bsl",
       "kind": "bundled-tool",
       "locked": "v1.21.0",
-      "latest": "v1.21.0",
+      "latest": "v1.22.0",
       "risk": "medium",
       "batch": "rlm-index-contract",
-      "status": "applied",
+      "status": "needs-review",
       "contractGate": true,
-      "notes": "Updated together with rlm-bsl-index; new navigation capabilities are exposed through typed unica.code.* tools, not raw RLM MCP guidance."
+      "notes": "v1.21.0 was applied together with rlm-bsl-index; v1.22.0 drift was detected after that batch and is intentionally kept out of the bsl-analyzer update."
     },
     {
       "id": "rlm-bsl-index",
       "kind": "bundled-tool",
       "locked": "v1.21.0",
-      "latest": "v1.21.0",
+      "latest": "v1.22.0",
       "risk": "medium",
       "batch": "rlm-index-contract",
-      "status": "applied",
+      "status": "needs-review",
       "contractGate": true,
-      "notes": "Verified packaged index build/update/info smoke; BUILDER_VERSION 14 requires rebuild and schema gate covers index_meta, methods_fts, regions, and module_headers."
+      "notes": "v1.21.0 index build/update/info and BUILDER_VERSION 14 were applied; v1.22.0 drift needs a separate schema and rebuild review."
     },
     {
       "id": "v8-runner",
