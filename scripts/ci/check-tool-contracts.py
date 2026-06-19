@@ -11,7 +11,7 @@ from pathlib import Path
 
 TOOL_HELP_CHECKS = [
     ("bsl-analyzer analyze source-dir", "run-bsl-analyzer.sh", ["analyze", "--help"], ["--source-dir"]),
-    ("bsl-analyzer search query", "run-bsl-analyzer.sh", ["search", "--help"], ["--query"]),
+    ("bsl-analyzer search namespace", "run-bsl-analyzer.sh", ["search", "--help"], ["baseline"]),
     ("bsl-analyzer mcp profile", "run-bsl-analyzer.sh", ["mcp", "serve", "--help"], ["--profile"]),
     ("rlm-bsl-index build", "run-rlm-bsl-index.sh", ["index", "build", "--help"], ["build"]),
     ("rlm-bsl-index update", "run-rlm-bsl-index.sh", ["index", "update", "--help"], ["update"]),
@@ -40,6 +40,7 @@ def run_command(command: list[str], cwd: Path) -> tuple[int, str]:
 
 
 def check_tool_contracts(scripts_dir: Path) -> list[str]:
+    scripts_dir = scripts_dir.resolve()
     errors: list[str] = []
     for label, script_name, args, expected_tokens in TOOL_HELP_CHECKS:
         script = scripts_dir / script_name

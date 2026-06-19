@@ -32,7 +32,7 @@ class ProductContractTests(unittest.TestCase):
                 scripts_dir,
                 "run-bsl-analyzer.sh",
                 "#!/usr/bin/env sh\n"
-                "printf '%s\\n' '--source-dir --query --profile workspace reference mcp serve analyze search'\n",
+                "printf '%s\\n' '--source-dir baseline --profile workspace reference mcp serve analyze search'\n",
             )
             self.write_script(
                 scripts_dir,
@@ -46,6 +46,32 @@ class ProductContractTests(unittest.TestCase):
             )
 
             errors = module.check_tool_contracts(scripts_dir)
+
+        self.assertEqual(errors, [])
+
+    def test_tool_help_contracts_accept_relative_scripts_dir(self) -> None:
+        module = load_contract_module()
+
+        with tempfile.TemporaryDirectory(dir=Path.cwd()) as tmp:
+            scripts_dir = Path(tmp)
+            self.write_script(
+                scripts_dir,
+                "run-bsl-analyzer.sh",
+                "#!/usr/bin/env sh\n"
+                "printf '%s\\n' '--source-dir baseline --profile workspace reference mcp serve analyze search'\n",
+            )
+            self.write_script(
+                scripts_dir,
+                "run-rlm-bsl-index.sh",
+                "#!/usr/bin/env sh\nprintf '%s\\n' 'index build update info'\n",
+            )
+            self.write_script(
+                scripts_dir,
+                "run-v8-runner.sh",
+                "#!/usr/bin/env sh\nprintf '%s\\n' 'v8-runner 0.5.1 version build'\n",
+            )
+
+            errors = module.check_tool_contracts(scripts_dir.relative_to(Path.cwd()))
 
         self.assertEqual(errors, [])
 

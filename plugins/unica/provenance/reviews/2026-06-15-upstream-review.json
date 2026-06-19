@@ -6,7 +6,7 @@
   "summary": [
     "cc-1c-skills has substantial upstream drift since the local v9 adaptation: 541 commits, 148 watched changed paths, 43 affected Unica skills.",
     "ai-rules-1c has guidance drift since the local v17/v18 adaptation window: 23 commits, 36 watched changed paths, 17 affected Unica skills.",
-    "v8-runner-rust has runtime-contract drift from locked v0.5.0 to upstream v0.5.1: 3 commits, 6 watched changed paths, 3 affected Unica skills."
+    "v8-runner-rust runtime-contract drift from locked v0.5.0 to upstream v0.5.1 was reviewed and applied; the current tool lock baseline is v0.5.1."
   ],
   "decisionPolicy": {
     "allowedEntryDecisions": [
@@ -149,14 +149,19 @@
     },
     {
       "id": "v8-runner-rust",
-      "baseline": "43674ee28a9f68acc70dfa2293288186d7130e75",
-      "baselineReason": "Bundled tool baseline from third-party/tools.lock.json, sourceTag v0.5.0.",
+      "baseline": "ad72f64222ab0a7e6dfd391adb437a956c0a2428",
+      "baselineReason": "Bundled tool baseline from third-party/tools.lock.json, sourceTag v0.5.1.",
+      "previousBaseline": "43674ee28a9f68acc70dfa2293288186d7130e75",
       "targetCommit": "ad72f64222ab0a7e6dfd391adb437a956c0a2428",
-      "commitsSinceBaseline": 3,
-      "changedWatchedPathCount": 6,
-      "reviewStatus": "needs-runtime-contract-review",
-      "finding": "Small but relevant runtime drift. v0.5.1 adds version command and changes partial-load/build behavior; review before updating the v8-runner tool lock.",
-      "affectedEntries": [
+      "commitsSinceBaseline": 0,
+      "reviewedCommits": 3,
+      "changedWatchedPathCount": 0,
+      "reviewedChangedWatchedPathCount": 6,
+      "reviewStatus": "applied",
+      "decision": "ported",
+      "finding": "Reviewed v0.5.1 runtime changes. It adds a version command and keeps partial-load/build behavior inside the runner contract; Unica MCP still uses typed unica.runtime.execute without new raw flags.",
+      "affectedEntries": [],
+      "reviewedEntries": [
         "autonomous-server",
         "db-auth-check",
         "v8-runner"

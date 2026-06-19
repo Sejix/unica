@@ -40,13 +40,13 @@
     {
       "id": "v8-runner",
       "kind": "bundled-tool",
-      "locked": "v0.5.0",
+      "locked": "v0.5.1",
       "latest": "v0.5.1",
       "risk": "low-medium",
       "batch": "v8-runner-runtime",
-      "status": "needs-runtime-smoke",
+      "status": "applied",
       "contractGate": true,
-      "notes": "Review version command and partial-load/build behavior before moving the tool lock."
+      "notes": "Updated tools.lock.json to v0.5.1 after reviewing the version command and partial-load/build changes; Unica MCP contract remains typed and unchanged."
     },
     {
       "id": "playwright",

@@ -104,7 +104,8 @@ class SkillProvenanceTests(unittest.TestCase):
 
         self.assertEqual(runtime_source["toolLockRef"], "v8-runner")
         self.assertIn(runtime_source["toolLockRef"], locked_tools)
-        self.assertEqual(locked_tools["v8-runner"]["sourceCommit"], "43674ee28a9f68acc70dfa2293288186d7130e75")
+        self.assertEqual(locked_tools["v8-runner"]["sourceTag"], "v0.5.1")
+        self.assertEqual(locked_tools["v8-runner"]["sourceCommit"], "ad72f64222ab0a7e6dfd391adb437a956c0a2428")
 
     def test_all_local_and_contract_paths_exist(self) -> None:
         data = self.load_provenance()
@@ -146,8 +147,11 @@ class SkillProvenanceTests(unittest.TestCase):
         self.assertIn("web-test", upstreams["cc-1c-skills"]["affectedEntries"])
         self.assertEqual(upstreams["ai-rules-1c"]["commitsSinceBaseline"], 23)
         self.assertIn("code-search", upstreams["ai-rules-1c"]["affectedEntries"])
-        self.assertEqual(upstreams["v8-runner-rust"]["commitsSinceBaseline"], 3)
-        self.assertIn("v8-runner", upstreams["v8-runner-rust"]["affectedEntries"])
+        self.assertEqual(upstreams["v8-runner-rust"]["commitsSinceBaseline"], 0)
+        self.assertEqual(upstreams["v8-runner-rust"]["reviewedCommits"], 3)
+        self.assertEqual(upstreams["v8-runner-rust"]["reviewStatus"], "applied")
+        self.assertEqual(upstreams["v8-runner-rust"]["affectedEntries"], [])
+        self.assertIn("v8-runner", upstreams["v8-runner-rust"]["reviewedEntries"])
 
     def test_product_update_backlog_tracks_all_planned_product_batches(self) -> None:
         backlog = self.load_product_backlog()
@@ -158,7 +162,9 @@ class SkillProvenanceTests(unittest.TestCase):
         self.assertEqual(products["bsl-analyzer"]["latest"], "v0.2.37")
         self.assertEqual(products["rlm-tools-bsl"]["latest"], "v1.21.0")
         self.assertEqual(products["rlm-bsl-index"]["latest"], "v1.21.0")
+        self.assertEqual(products["v8-runner"]["locked"], "v0.5.1")
         self.assertEqual(products["v8-runner"]["latest"], "v0.5.1")
+        self.assertEqual(products["v8-runner"]["status"], "applied")
         self.assertEqual(products["playwright"]["latest"], "1.61.0")
         self.assertEqual(products["lxml"]["latest"], "6.1.1")
         self.assertEqual(products["rust-compatible-lock-updates"]["updateCount"], 16)
