@@ -531,6 +531,7 @@ impl<'a> CodeNavigationAdapter<'a> {
             "unica.code.definition" => self.definition(tool_name, args, context),
             "unica.code.outline" => self.outline(tool_name, args, context),
             "unica.code.grep" => self.grep(tool_name, args, context),
+            "unica.meta.profile" => self.meta_profile(tool_name, args, context),
             _ => Err(format!("unsupported code navigation tool: {tool_name}")),
         }
     }
@@ -679,6 +680,37 @@ impl<'a> CodeNavigationAdapter<'a> {
             command: Some(std::iter::once("git".to_string()).chain(git_args).collect()),
         })
     }
+
+    fn meta_profile(
+        &self,
+        tool_name: &str,
+        args: &Map<String, Value>,
+        context: &WorkspaceContext,
+    ) -> Result<AdapterOutcome, String> {
+        let readiness =
+            WorkspaceIndexService::with_runner(self.index_runner).ready_index(context, args);
+        let db_path = match readiness {
+            IndexReadiness::Ready { db_path } => db_path,
+            other => return Ok(index_unavailable_outcome(tool_name, other)),
+        };
+        match metadata_profile(&db_path, args) {
+            Ok(body) => Ok(AdapterOutcome {
+                ok: true,
+                summary: format!("{tool_name} completed through internal RLM metadata index"),
+                changes: Vec::new(),
+                warnings: Vec::new(),
+                errors: Vec::new(),
+                artifacts: vec![db_path.display().to_string()],
+                stdout: Some(format_section("rlm-meta-profile", &body)),
+                stderr: None,
+                command: None,
+            }),
+            Err(error) if is_metadata_profile_schema_error(&error) => Ok(
+                metadata_profile_unavailable_outcome(tool_name, &db_path, &error),
+            ),
+            Err(error) => Err(error),
+        }
+    }
 }
 
 impl Default for CodeNavigationAdapter<'_> {
@@ -788,6 +820,21 @@ struct ModuleRecord {
     category: Option<String>,
     object_name: Option<String>,
     module_type: Option<String>,
+}
+
+#[derive(Debug, Clone)]
+struct ProfileIdentity {
+    category: Option<String>,
+    object_name: String,
+}
+
+impl ProfileIdentity {
+    fn object_ref(&self) -> String {
+        match self.category.as_deref().filter(|value| !value.is_empty()) {
+            Some(category) => format!("{category}.{}", self.object_name),
+            None => self.object_name.clone(),
+        }
+    }
 }
 
 fn find_definitions(db_path: &PathBuf, args: &Map<String, Value>) -> Result<String, String> {
@@ -991,6 +1038,390 @@ fn module_outline(
     }
 
     Ok(lines.join("\n"))
+}
+
+fn metadata_profile(db_path: &PathBuf, args: &Map<String, Value>) -> Result<String, String> {
+    let requested_name = required_string(args, "name")?;
+    let limit = read_limit(args, 20);
+    let sections = profile_sections(args)?;
+    let conn = Connection::open(db_path).map_err(|error| error.to_string())?;
+    let identity = resolve_profile_identity(&conn, requested_name)?;
+
+    let mut lines = vec![format!("object: {}", identity.object_ref())];
+    if let Some(category) = identity
+        .category
+        .as_deref()
+        .filter(|value| !value.is_empty())
+    {
+        lines.push(format!("category: {category}"));
+    }
+    lines.push(format!("name: {}", identity.object_name));
+
+    for section in sections {
+        let items = match section.as_str() {
+            "structure" => profile_structure(&conn, &identity)?,
+            "modules" => profile_modules(&conn, &identity)?,
+            "roles" => profile_roles(&conn, &identity)?,
+            "subscriptions" => profile_subscriptions(&conn, &identity)?,
+            "functionalOptions" => profile_functional_options(&conn, &identity)?,
+            "predefinedItems" => profile_predefined_items(&conn, &identity)?,
+            other => return Err(format!("unsupported metadata profile section: {other}")),
+        };
+        lines.extend(format_profile_section(&section, items, limit));
+    }
+
+    Ok(lines.join("\n"))
+}
+
+fn profile_sections(args: &Map<String, Value>) -> Result<Vec<String>, String> {
+    let Some(raw_sections) = args.get("sections") else {
+        return Ok(vec![
+            "structure".to_string(),
+            "modules".to_string(),
+            "roles".to_string(),
+            "subscriptions".to_string(),
+            "functionalOptions".to_string(),
+        ]);
+    };
+    let Some(items) = raw_sections.as_array() else {
+        return Err("unica.meta.profile argument `sections` must be array".to_string());
+    };
+    let mut sections = Vec::new();
+    for item in items {
+        let Some(section) = item.as_str() else {
+            return Err("unica.meta.profile argument `sections` must contain strings".to_string());
+        };
+        match section {
+            "structure" | "modules" | "roles" | "subscriptions" | "functionalOptions"
+            | "predefinedItems" => sections.push(section.to_string()),
+            other => return Err(format!("unsupported metadata profile section: {other}")),
+        }
+    }
+    Ok(sections)
+}
+
+fn resolve_profile_identity(
+    conn: &Connection,
+    requested_name: &str,
+) -> Result<ProfileIdentity, String> {
+    let (category_hint, object_name) = split_profile_name(requested_name);
+    if let Some(identity) = query_profile_identity(
+        conn,
+        "SELECT DISTINCT category, object_name FROM modules \
+         WHERE object_name = ? COLLATE NOCASE \
+           AND (? IS NULL OR category = ? COLLATE NOCASE) \
+         ORDER BY category, object_name LIMIT 1",
+        category_hint.as_deref(),
+        &object_name,
+    )? {
+        return Ok(identity);
+    }
+    if let Some(identity) = query_profile_identity(
+        conn,
+        "SELECT DISTINCT category, object_name FROM object_attributes \
+         WHERE object_name = ? COLLATE NOCASE \
+           AND (? IS NULL OR category = ? COLLATE NOCASE) \
+         ORDER BY category, object_name LIMIT 1",
+        category_hint.as_deref(),
+        &object_name,
+    )? {
+        return Ok(identity);
+    }
+    if let Some(category) = category_hint {
+        Ok(ProfileIdentity {
+            category: Some(category),
+            object_name,
+        })
+    } else {
+        Err(format!(
+            "No RLM metadata object found for `{requested_name}`."
+        ))
+    }
+}
+
+fn query_profile_identity(
+    conn: &Connection,
+    sql: &str,
+    category_hint: Option<&str>,
+    object_name: &str,
+) -> Result<Option<ProfileIdentity>, String> {
+    conn.query_row(
+        sql,
+        params![object_name, category_hint, category_hint],
+        |row| {
+            Ok(ProfileIdentity {
+                category: row.get(0)?,
+                object_name: row.get(1)?,
+            })
+        },
+    )
+    .optional()
+    .map_err(|error| error.to_string())
+}
+
+fn split_profile_name(raw: &str) -> (Option<String>, String) {
+    let trimmed = raw.trim();
+    let Some((prefix, name)) = trimmed.split_once('.') else {
+        return (None, trimmed.to_string());
+    };
+    let category = match prefix {
+        "Document" | "Документ" => "Document",
+        "Catalog" | "Справочник" => "Catalog",
+        "CommonModule" | "CommonModules" | "ОбщийМодуль" | "ОбщиеМодули" => {
+            "CommonModule"
+        }
+        "InformationRegister" | "РегистрСведений" => "InformationRegister",
+        "AccumulationRegister" | "РегистрНакопления" => "AccumulationRegister",
+        "Enum" | "Перечисление" => "Enum",
+        other => other,
+    };
+    (Some(category.to_string()), name.trim().to_string())
+}
+
+fn format_profile_section(section: &str, items: Vec<String>, limit: usize) -> Vec<String> {
+    let total = items.len();
+    let returned = total.min(limit);
+    let status = if total == 0 { "empty" } else { "ok" };
+    let mut lines = vec![format!(
+        "section {section}: {status} total={total} returned={returned}"
+    )];
+    lines.extend(items.into_iter().take(limit));
+    lines
+}
+
+fn category_filter(identity: &ProfileIdentity) -> Option<&str> {
+    identity
+        .category
+        .as_deref()
+        .filter(|value| !value.is_empty())
+}
+
+fn profile_structure(conn: &Connection, identity: &ProfileIdentity) -> Result<Vec<String>, String> {
+    let mut stmt = conn
+        .prepare(
+            "SELECT attr_kind, attr_name, attr_type, ts_name \
+             FROM object_attributes \
+             WHERE object_name = ? COLLATE NOCASE \
+               AND (? IS NULL OR category = ? COLLATE NOCASE) \
+             ORDER BY attr_kind, ts_name, attr_name",
+        )
+        .map_err(|error| error.to_string())?;
+    let rows = stmt
+        .query_map(
+            params![
+                identity.object_name,
+                category_filter(identity),
+                category_filter(identity)
+            ],
+            |row| {
+                let kind: String = row.get(0)?;
+                let name: String = row.get(1)?;
+                let attr_type: Option<String> = row.get(2)?;
+                let ts_name: Option<String> = row.get(3)?;
+                let table = ts_name
+                    .filter(|value| !value.is_empty())
+                    .map(|value| format!(" table={value}"))
+                    .unwrap_or_default();
+                let type_text = attr_type
+                    .filter(|value| !value.is_empty())
+                    .map(|value| format!(" type={value}"))
+                    .unwrap_or_default();
+                Ok(format!("- {kind} {name}{type_text}{table}"))
+            },
+        )
+        .map_err(|error| error.to_string())?;
+    collect_rows(rows)
+}
+
+fn profile_modules(conn: &Connection, identity: &ProfileIdentity) -> Result<Vec<String>, String> {
+    let mut stmt = conn
+        .prepare(
+            "SELECT rel_path, module_type \
+             FROM modules \
+             WHERE object_name = ? COLLATE NOCASE \
+               AND (? IS NULL OR category = ? COLLATE NOCASE) \
+             ORDER BY rel_path",
+        )
+        .map_err(|error| error.to_string())?;
+    let rows = stmt
+        .query_map(
+            params![
+                identity.object_name,
+                category_filter(identity),
+                category_filter(identity)
+            ],
+            |row| {
+                let rel_path: String = row.get(0)?;
+                let module_type: Option<String> = row.get(1)?;
+                let suffix = module_type
+                    .filter(|value| !value.is_empty())
+                    .map(|value| format!(" {value}"))
+                    .unwrap_or_default();
+                Ok(format!("- module {rel_path}{suffix}"))
+            },
+        )
+        .map_err(|error| error.to_string())?;
+    collect_rows(rows)
+}
+
+fn profile_roles(conn: &Connection, identity: &ProfileIdentity) -> Result<Vec<String>, String> {
+    let object_ref = identity.object_ref();
+    let mut stmt = conn
+        .prepare(
+            "SELECT role_name, GROUP_CONCAT(right_name, ', ') \
+             FROM ( \
+               SELECT role_name, right_name, id FROM role_rights \
+               WHERE object_name = ? COLLATE NOCASE OR object_name = ? COLLATE NOCASE \
+               ORDER BY role_name, id \
+             ) \
+             GROUP BY role_name ORDER BY role_name",
+        )
+        .map_err(|error| error.to_string())?;
+    let rows = stmt
+        .query_map(params![object_ref, identity.object_name], |row| {
+            let role_name: String = row.get(0)?;
+            let rights: Option<String> = row.get(1)?;
+            Ok(format!(
+                "- role {role_name} rights={}",
+                rights.unwrap_or_default()
+            ))
+        })
+        .map_err(|error| error.to_string())?;
+    collect_rows(rows)
+}
+
+fn profile_subscriptions(
+    conn: &Connection,
+    identity: &ProfileIdentity,
+) -> Result<Vec<String>, String> {
+    let object_ref = identity.object_ref();
+    let like_ref = format!("%{object_ref}%");
+    let like_name = format!("%{}%", identity.object_name);
+    let mut stmt = conn
+        .prepare(
+            "SELECT name, event, handler_module, handler_procedure \
+             FROM event_subscriptions \
+             WHERE source_types LIKE ? OR source_types LIKE ? OR name = ? COLLATE NOCASE \
+             ORDER BY name",
+        )
+        .map_err(|error| error.to_string())?;
+    let rows = stmt
+        .query_map(params![like_ref, like_name, identity.object_name], |row| {
+            let name: String = row.get(0)?;
+            let event: Option<String> = row.get(1)?;
+            let handler_module: Option<String> = row.get(2)?;
+            let handler_procedure: Option<String> = row.get(3)?;
+            let handler = match (handler_module, handler_procedure) {
+                (Some(module), Some(procedure)) if !module.is_empty() && !procedure.is_empty() => {
+                    format!("{module}.{procedure}")
+                }
+                (Some(module), _) if !module.is_empty() => module,
+                (_, Some(procedure)) if !procedure.is_empty() => procedure,
+                _ => "<unknown>".to_string(),
+            };
+            Ok(format!(
+                "- subscription {name} event={} handler={handler}",
+                event.unwrap_or_default()
+            ))
+        })
+        .map_err(|error| error.to_string())?;
+    collect_rows(rows)
+}
+
+fn profile_functional_options(
+    conn: &Connection,
+    identity: &ProfileIdentity,
+) -> Result<Vec<String>, String> {
+    let object_ref = identity.object_ref();
+    let like_ref = format!("%{object_ref}%");
+    let like_name = format!("%{}%", identity.object_name);
+    let mut stmt = conn
+        .prepare(
+            "SELECT name \
+             FROM functional_options \
+             WHERE location LIKE ? OR content LIKE ? OR location LIKE ? OR content LIKE ? \
+             ORDER BY name",
+        )
+        .map_err(|error| error.to_string())?;
+    let rows = stmt
+        .query_map(params![like_ref, like_ref, like_name, like_name], |row| {
+            let name: String = row.get(0)?;
+            Ok(format!("- option {name}"))
+        })
+        .map_err(|error| error.to_string())?;
+    collect_rows(rows)
+}
+
+fn profile_predefined_items(
+    conn: &Connection,
+    identity: &ProfileIdentity,
+) -> Result<Vec<String>, String> {
+    let mut stmt = conn
+        .prepare(
+            "SELECT item_name, item_code \
+             FROM predefined_items \
+             WHERE object_name = ? COLLATE NOCASE \
+               AND (? IS NULL OR category = ? COLLATE NOCASE) \
+             ORDER BY item_name",
+        )
+        .map_err(|error| error.to_string())?;
+    let rows = stmt
+        .query_map(
+            params![
+                identity.object_name,
+                category_filter(identity),
+                category_filter(identity)
+            ],
+            |row| {
+                let item_name: String = row.get(0)?;
+                let item_code: Option<String> = row.get(1)?;
+                let code = item_code
+                    .filter(|value| !value.is_empty())
+                    .map(|value| format!(" code={value}"))
+                    .unwrap_or_default();
+                Ok(format!("- predefined {item_name}{code}"))
+            },
+        )
+        .map_err(|error| error.to_string())?;
+    collect_rows(rows)
+}
+
+fn collect_rows(
+    rows: impl Iterator<Item = rusqlite::Result<String>>,
+) -> Result<Vec<String>, String> {
+    let mut lines = Vec::new();
+    for row in rows {
+        lines.push(row.map_err(|error| error.to_string())?);
+    }
+    Ok(lines)
+}
+
+fn is_metadata_profile_schema_error(error: &str) -> bool {
+    error.contains("no such table:") || error.contains("no such column:")
+}
+
+fn metadata_profile_unavailable_outcome(
+    tool_name: &str,
+    db_path: &PathBuf,
+    error: &str,
+) -> AdapterOutcome {
+    let warning = format!(
+        "RLM metadata profile schema is unavailable in the ready index: {error}; rebuild the RLM index with current tools."
+    );
+    AdapterOutcome {
+        ok: true,
+        summary: format!("{tool_name} could not read metadata profile from current RLM index"),
+        changes: Vec::new(),
+        warnings: vec![warning.clone()],
+        errors: Vec::new(),
+        artifacts: vec![db_path.display().to_string()],
+        stdout: Some(format_section(
+            "rlm-meta-profile",
+            &format!("metadata profile unavailable\nwarning: {warning}"),
+        )),
+        stderr: None,
+        command: None,
+    }
 }
 
 fn index_unavailable_outcome(tool_name: &str, readiness: IndexReadiness) -> AdapterOutcome {
@@ -2470,6 +2901,106 @@ mod tests {
     }
 
     #[test]
+    fn meta_profile_adapter_returns_object_metadata_from_ready_rlm_index() {
+        let context = temp_context("meta-profile-ready");
+        fs::create_dir_all(context.workspace_root.join("src/Documents/SalesOrder")).unwrap();
+        let db_path = context.cache_root.join("rlm-tools-bsl/test/bsl_index.db");
+        create_rlm_profile_db(&db_path);
+        let index = FakeIndexRunner {
+            outputs: RefCell::new(vec![index_success(format!(
+                "Index: {}\n  Status:   fresh\n",
+                db_path.display()
+            ))]),
+            ..Default::default()
+        };
+        let grep = FakeProcessRunner {
+            output: ProcessOutput {
+                status_success: true,
+                status: "exit status: 0".to_string(),
+                stdout: String::new(),
+                stderr: String::new(),
+                timed_out: false,
+            },
+        };
+        let mut args = Map::new();
+        args.insert("name".to_string(), json!("Document.SalesOrder"));
+        args.insert(
+            "sections".to_string(),
+            json!([
+                "structure",
+                "modules",
+                "roles",
+                "subscriptions",
+                "functionalOptions"
+            ]),
+        );
+        args.insert("limit".to_string(), json!(10));
+
+        let outcome = CodeNavigationAdapter::with_runners(&index, &grep)
+            .invoke("unica.meta.profile", &args, &context, false)
+            .unwrap();
+
+        assert!(outcome.ok);
+        let stdout = outcome.stdout.unwrap();
+        assert!(stdout.contains("=== rlm-meta-profile ==="));
+        assert!(stdout.contains("object: Document.SalesOrder"));
+        assert!(stdout.contains("section structure: ok total=1 returned=1"));
+        assert!(stdout.contains("- attribute Customer type=CatalogRef.Customers"));
+        assert!(stdout.contains("section modules: ok total=1 returned=1"));
+        assert!(stdout.contains("- module Documents/SalesOrder/Ext/ObjectModule.bsl ObjectModule"));
+        assert!(stdout.contains("section roles: ok total=1 returned=1"));
+        assert!(stdout.contains("- role SalesManager rights=Read, Insert"));
+        assert!(stdout.contains("section subscriptions: ok total=1 returned=1"));
+        assert!(stdout.contains(
+            "- subscription SalesOrderOnWrite event=OnWrite handler=SalesEvents.OnWrite"
+        ));
+        assert!(stdout.contains("section functionalOptions: ok total=1 returned=1"));
+        assert!(stdout.contains("- option UseSalesOrders"));
+        cleanup_context(&context);
+    }
+
+    #[test]
+    fn meta_profile_adapter_warns_when_ready_index_lacks_profile_schema() {
+        let context = temp_context("meta-profile-missing-schema");
+        fs::create_dir_all(context.workspace_root.join("src/CommonModules")).unwrap();
+        let db_path = context.cache_root.join("rlm-tools-bsl/test/bsl_index.db");
+        create_rlm_navigation_db(&db_path);
+        let index = FakeIndexRunner {
+            outputs: RefCell::new(vec![index_success(format!(
+                "Index: {}\n  Status:   fresh\n",
+                db_path.display()
+            ))]),
+            ..Default::default()
+        };
+        let grep = FakeProcessRunner {
+            output: ProcessOutput {
+                status_success: true,
+                status: "exit status: 0".to_string(),
+                stdout: String::new(),
+                stderr: String::new(),
+                timed_out: false,
+            },
+        };
+        let mut args = Map::new();
+        args.insert("name".to_string(), json!("CommonModule.SmokeModule"));
+
+        let outcome = CodeNavigationAdapter::with_runners(&index, &grep)
+            .invoke("unica.meta.profile", &args, &context, false)
+            .unwrap();
+
+        assert!(outcome.ok);
+        assert!(outcome
+            .warnings
+            .iter()
+            .any(|warning| warning.contains("metadata profile schema")));
+        let stdout = outcome.stdout.unwrap();
+        assert!(stdout.contains("=== rlm-meta-profile ==="));
+        assert!(stdout.contains("metadata profile unavailable"));
+        assert!(stdout.contains("rebuild the RLM index"));
+        cleanup_context(&context);
+    }
+
+    #[test]
     fn code_grep_adapter_maps_typed_args_to_safe_git_grep() {
         let context = temp_context("grep-command");
         let index = FakeIndexRunner::default();
@@ -3021,6 +3552,139 @@ mod tests {
         .unwrap();
         conn.execute(
             "INSERT INTO module_headers (module_id, header_comment) VALUES (1, 'Smoke module header')",
+            (),
+        )
+        .unwrap();
+    }
+
+    fn create_rlm_profile_db(db_path: &PathBuf) {
+        fs::create_dir_all(db_path.parent().unwrap()).unwrap();
+        let conn = Connection::open(db_path).unwrap();
+        conn.execute_batch(
+            "CREATE TABLE index_meta (
+                key TEXT PRIMARY KEY,
+                value TEXT
+            );
+            CREATE TABLE modules (
+                id INTEGER PRIMARY KEY,
+                rel_path TEXT NOT NULL,
+                category TEXT,
+                object_name TEXT,
+                module_type TEXT
+            );
+            CREATE TABLE methods (
+                id INTEGER PRIMARY KEY,
+                module_id INTEGER NOT NULL,
+                name TEXT NOT NULL,
+                type TEXT NOT NULL,
+                is_export INTEGER NOT NULL,
+                params TEXT,
+                line INTEGER NOT NULL,
+                end_line INTEGER NOT NULL,
+                loc INTEGER
+            );
+            CREATE VIRTUAL TABLE methods_fts USING fts5(name, object_name, tokenize='trigram');
+            CREATE TABLE regions (
+                id INTEGER PRIMARY KEY,
+                module_id INTEGER NOT NULL,
+                name TEXT NOT NULL,
+                line INTEGER NOT NULL,
+                end_line INTEGER
+            );
+            CREATE TABLE module_headers (
+                module_id INTEGER PRIMARY KEY,
+                header_comment TEXT NOT NULL
+            );
+            CREATE TABLE object_attributes (
+                id INTEGER PRIMARY KEY,
+                object_name TEXT NOT NULL,
+                category TEXT NOT NULL,
+                attr_name TEXT NOT NULL,
+                attr_synonym TEXT,
+                attr_type TEXT,
+                attr_kind TEXT NOT NULL,
+                ts_name TEXT,
+                source_file TEXT NOT NULL
+            );
+            CREATE TABLE role_rights (
+                id INTEGER PRIMARY KEY,
+                role_name TEXT NOT NULL,
+                object_name TEXT NOT NULL,
+                right_name TEXT NOT NULL,
+                file TEXT
+            );
+            CREATE TABLE event_subscriptions (
+                id INTEGER PRIMARY KEY,
+                name TEXT NOT NULL,
+                synonym TEXT,
+                event TEXT,
+                handler_module TEXT,
+                handler_procedure TEXT,
+                source_types TEXT,
+                source_count INTEGER,
+                file TEXT
+            );
+            CREATE TABLE functional_options (
+                id INTEGER PRIMARY KEY,
+                name TEXT NOT NULL,
+                synonym TEXT,
+                location TEXT,
+                content TEXT,
+                file TEXT
+            );
+            CREATE TABLE predefined_items (
+                id INTEGER PRIMARY KEY,
+                object_name TEXT NOT NULL,
+                category TEXT NOT NULL,
+                item_name TEXT NOT NULL,
+                item_synonym TEXT,
+                item_code TEXT,
+                types_json TEXT,
+                is_folder INTEGER DEFAULT 0,
+                source_file TEXT NOT NULL
+            );",
+        )
+        .unwrap();
+        conn.execute(
+            "INSERT INTO index_meta (key, value) VALUES ('builder_version', '14')",
+            (),
+        )
+        .unwrap();
+        conn.execute(
+            "INSERT INTO modules (id, rel_path, category, object_name, module_type)
+             VALUES (1, 'Documents/SalesOrder/Ext/ObjectModule.bsl', 'Document', 'SalesOrder', 'ObjectModule')",
+            (),
+        )
+        .unwrap();
+        conn.execute(
+            "INSERT INTO object_attributes
+             (object_name, category, attr_name, attr_synonym, attr_type, attr_kind, ts_name, source_file)
+             VALUES ('SalesOrder', 'Document', 'Customer', 'Customer', 'CatalogRef.Customers', 'attribute', NULL, 'Documents/SalesOrder.xml')",
+            (),
+        )
+        .unwrap();
+        conn.execute(
+            "INSERT INTO role_rights (role_name, object_name, right_name, file)
+             VALUES ('SalesManager', 'Document.SalesOrder', 'Read', 'Roles/SalesManager.xml')",
+            (),
+        )
+        .unwrap();
+        conn.execute(
+            "INSERT INTO role_rights (role_name, object_name, right_name, file)
+             VALUES ('SalesManager', 'Document.SalesOrder', 'Insert', 'Roles/SalesManager.xml')",
+            (),
+        )
+        .unwrap();
+        conn.execute(
+            "INSERT INTO event_subscriptions
+             (name, synonym, event, handler_module, handler_procedure, source_types, source_count, file)
+             VALUES ('SalesOrderOnWrite', NULL, 'OnWrite', 'SalesEvents', 'OnWrite', 'Document.SalesOrder', 1, 'EventSubscriptions/SalesOrderOnWrite.xml')",
+            (),
+        )
+        .unwrap();
+        conn.execute(
+            "INSERT INTO functional_options (name, synonym, location, content, file)
+             VALUES ('UseSalesOrders', NULL, 'Document.SalesOrder', 'Document.SalesOrder', 'FunctionalOptions/UseSalesOrders.xml')",
             (),
         )
         .unwrap();

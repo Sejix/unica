@@ -44,6 +44,26 @@ RLM_SCHEMA_COLUMNS = {
     "methods_fts": {"name", "object_name"},
     "regions": {"id", "module_id", "name", "line", "end_line"},
     "module_headers": {"module_id", "header_comment"},
+    "object_attributes": {
+        "id",
+        "object_name",
+        "category",
+        "attr_name",
+        "attr_type",
+        "attr_kind",
+        "ts_name",
+    },
+    "role_rights": {"id", "role_name", "object_name", "right_name", "file"},
+    "event_subscriptions": {
+        "id",
+        "name",
+        "event",
+        "handler_module",
+        "handler_procedure",
+        "source_types",
+    },
+    "functional_options": {"id", "name", "location", "content", "file"},
+    "predefined_items": {"id", "object_name", "category", "item_name", "item_code"},
 }
 
 RLM_REQUIRED_META = {

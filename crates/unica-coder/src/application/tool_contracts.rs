@@ -296,6 +296,15 @@ const CODE_DIAGNOSTICS_ARGS: &[&str] = &[
 const CODE_DIAGNOSTIC_MODES: &[&str] = &["analyze", "status", "catalog", "file", "workspace"];
 const CODE_DIAGNOSTIC_SEVERITIES: &[&str] = &["error", "warning", "info", "hint"];
 const CODE_DIAGNOSTIC_DETAIL: &[&str] = &["concise", "detailed"];
+const META_PROFILE_ARGS: &[&str] = &["limit", "name", "sections", "sourceDir"];
+const META_PROFILE_SECTIONS: &[&str] = &[
+    "structure",
+    "modules",
+    "roles",
+    "subscriptions",
+    "functionalOptions",
+    "predefinedItems",
+];
 
 const STANDARDS_ARGS: &[&str] = &[
     "body_limit",
@@ -387,7 +396,36 @@ fn validate_code_arguments(
                 ));
             }
         }
+        "unica.meta.profile" => {
+            validate_array_enum_argument(tool.name, args, "sections", META_PROFILE_SECTIONS)?;
+        }
         _ => {}
+    }
+    Ok(())
+}
+
+fn validate_array_enum_argument(
+    tool_name: &str,
+    args: &Map<String, Value>,
+    key: &str,
+    allowed: &[&str],
+) -> Result<(), String> {
+    let Some(value) = args.get(key) else {
+        return Ok(());
+    };
+    let Some(items) = value.as_array() else {
+        return Err(format!("{tool_name} argument `{key}` must be array"));
+    };
+    for item in items {
+        let Some(item) = item.as_str() else {
+            return Err(format!("{tool_name} argument `{key}` must contain strings"));
+        };
+        if !allowed.contains(&item) {
+            return Err(format!(
+                "{tool_name} argument `{key}` values must be one of: {}",
+                allowed.join(", ")
+            ));
+        }
     }
     Ok(())
 }
@@ -674,6 +712,7 @@ fn required_args(tool: &ToolSpec) -> Vec<&'static str> {
             "unica.code.outline" => vec!["path"],
             "unica.code.grep" => vec!["query"],
             "unica.code.graph" => vec!["mode"],
+            "unica.meta.profile" => vec!["name"],
             _ => Vec::new(),
         },
         _ => Vec::new(),
@@ -687,6 +726,7 @@ fn code_args_for(tool_name: &str) -> &'static [&'static str] {
         "unica.code.grep" => CODE_GREP_ARGS,
         "unica.code.graph" => CODE_GRAPH_ARGS,
         "unica.code.diagnostics" => CODE_DIAGNOSTICS_ARGS,
+        "unica.meta.profile" => META_PROFILE_ARGS,
         _ => CODE_ARGS,
     }
 }
@@ -748,6 +788,7 @@ fn property_schema(name: &str) -> Value {
             | "ids"
             | "edgeKinds"
             | "provenance"
+            | "sections"
     ) {
         "array"
     } else {
@@ -789,6 +830,15 @@ fn property_schema_for_tool(tool: &ToolSpec, name: &str) -> Value {
                 return json!({ "type": "string", "enum": CODE_DIAGNOSTIC_SEVERITIES });
             }
             "detail" => return json!({ "type": "string", "enum": CODE_DIAGNOSTIC_DETAIL }),
+            _ => {}
+        },
+        "unica.meta.profile" => match name {
+            "sections" => {
+                return json!({
+                    "type": "array",
+                    "items": {"type": "string", "enum": META_PROFILE_SECTIONS}
+                });
+            }
             _ => {}
         },
         _ => {}
@@ -864,6 +914,7 @@ fn expected_scalar_type(key: &str) -> Option<&'static str> {
             | "ids"
             | "edgeKinds"
             | "provenance"
+            | "sections"
     ) {
         Some("array")
     } else {
@@ -1034,6 +1085,33 @@ mod tests {
         let error = validate_tool_arguments(definition, &args, false).unwrap_err();
         assert!(error.contains("requires `name`"));
         validate_tool_arguments(definition, &args, true).unwrap();
+    }
+
+    #[test]
+    fn meta_profile_contract_exposes_typed_arguments_without_raw_args() {
+        let profile = tools()
+            .into_iter()
+            .find(|tool| tool.name == "unica.meta.profile")
+            .expect("unica.meta.profile must be registered");
+
+        let schema = input_schema_for_tool(&profile);
+        assert_eq!(schema["additionalProperties"], false);
+        assert!(schema["properties"].get("name").is_some());
+        assert_eq!(schema["properties"]["sections"]["type"], "array");
+        assert_eq!(schema["properties"]["limit"]["type"], "integer");
+        assert!(schema["properties"].get("args").is_none());
+        assert!(schema["properties"].get("rlm_execute").is_none());
+        assert_eq!(schema["required"], json!(["name"]));
+
+        let mut args = Map::new();
+        args.insert("args".to_string(), json!(["get_object_profile"]));
+        let error = validate_tool_arguments(profile, &args, false).unwrap_err();
+        assert!(error.contains("does not accept argument `args`"));
+
+        let args = Map::new();
+        let error = validate_tool_arguments(profile, &args, false).unwrap_err();
+        assert!(error.contains("requires `name`"));
+        validate_tool_arguments(profile, &args, true).unwrap();
     }
 
     #[test]

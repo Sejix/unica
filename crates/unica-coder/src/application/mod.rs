@@ -340,7 +340,10 @@ fn call_tool(spec: ToolSpec, args: &Map<String, Value>) -> Result<OperationResul
             CodeSearchAdapter::new().invoke(spec.name, args, &context, dry_run)?
         }
         ToolHandler::CodeAdapter { command }
-            if matches!(command, ["definition"] | ["outline"] | ["grep"]) =>
+            if matches!(
+                command,
+                ["definition"] | ["outline"] | ["grep"] | ["meta-profile"]
+            ) =>
         {
             CodeNavigationAdapter::new().invoke(spec.name, args, &context, dry_run)?
         }
@@ -606,6 +609,18 @@ fn configuration_tools() -> Vec<ToolSpec> {
             handler: ToolHandler::NativeOperation {
                 operation: "meta-info",
                 event: None,
+            },
+        },
+        ToolSpec {
+            name: "unica.meta.profile",
+            description: "Read compact metadata object profile from the internal RLM index.",
+            mutating: false,
+            cache_access: CacheAccess {
+                reads: &["bsl_index"],
+                writes: &[],
+            },
+            handler: ToolHandler::CodeAdapter {
+                command: &["meta-profile"],
             },
         },
         ToolSpec {
@@ -958,6 +973,7 @@ mod tests {
         assert!(names.contains(&"unica.code.outline"));
         assert!(names.contains(&"unica.code.grep"));
         assert!(names.contains(&"unica.code.graph"));
+        assert!(names.contains(&"unica.meta.profile"));
         assert!(names.contains(&"unica.standards.explain"));
         assert!(!names.contains(&"unica-coder"));
     }
@@ -1068,6 +1084,9 @@ mod tests {
                 && !tool.name.starts_with("unica.mxl.")
                 && !tool.name.starts_with("unica.role.")
             {
+                continue;
+            }
+            if tool.name == "unica.meta.profile" {
                 continue;
             }
 

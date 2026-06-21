@@ -147,6 +147,29 @@ class ProductContractTests(unittest.TestCase):
                     "line INTEGER, end_line INTEGER)"
                 )
                 conn.execute("CREATE TABLE module_headers (module_id INTEGER, header_comment TEXT)")
+                conn.execute(
+                    "CREATE TABLE object_attributes (id INTEGER, object_name TEXT, category TEXT, "
+                    "attr_name TEXT, attr_synonym TEXT, attr_type TEXT, attr_kind TEXT, "
+                    "ts_name TEXT, source_file TEXT)"
+                )
+                conn.execute(
+                    "CREATE TABLE role_rights (id INTEGER, role_name TEXT, object_name TEXT, "
+                    "right_name TEXT, file TEXT)"
+                )
+                conn.execute(
+                    "CREATE TABLE event_subscriptions (id INTEGER, name TEXT, synonym TEXT, "
+                    "event TEXT, handler_module TEXT, handler_procedure TEXT, source_types TEXT, "
+                    "source_count INTEGER, file TEXT)"
+                )
+                conn.execute(
+                    "CREATE TABLE functional_options (id INTEGER, name TEXT, synonym TEXT, "
+                    "location TEXT, content TEXT, file TEXT)"
+                )
+                conn.execute(
+                    "CREATE TABLE predefined_items (id INTEGER, object_name TEXT, category TEXT, "
+                    "item_name TEXT, item_synonym TEXT, item_code TEXT, types_json TEXT, "
+                    "is_folder INTEGER, source_file TEXT)"
+                )
 
             self.assertEqual(module.check_rlm_schema(db_path), [])
 
@@ -170,6 +193,35 @@ class ProductContractTests(unittest.TestCase):
             errors = module.check_rlm_schema(db_path)
 
         self.assertTrue(any("modules.object_name" in error for error in errors), errors)
+
+    def test_rlm_schema_contract_requires_metadata_tables_used_by_meta_profile(self) -> None:
+        module = load_contract_module()
+
+        with tempfile.TemporaryDirectory() as tmp:
+            db_path = Path(tmp) / "bsl_index.db"
+            with sqlite3.connect(db_path) as conn:
+                conn.execute("CREATE TABLE index_meta (key TEXT PRIMARY KEY, value TEXT)")
+                conn.execute("INSERT INTO index_meta (key, value) VALUES ('builder_version', '14')")
+                conn.execute(
+                    "CREATE TABLE modules (id INTEGER, rel_path TEXT, object_name TEXT, "
+                    "category TEXT, module_type TEXT)"
+                )
+                conn.execute(
+                    "CREATE TABLE methods (id INTEGER, module_id INTEGER, name TEXT, type TEXT, "
+                    "is_export INTEGER, line INTEGER, end_line INTEGER, params TEXT, loc INTEGER)"
+                )
+                conn.execute("CREATE VIRTUAL TABLE methods_fts USING fts5(name, object_name)")
+                conn.execute(
+                    "CREATE TABLE regions (id INTEGER, module_id INTEGER, name TEXT, "
+                    "line INTEGER, end_line INTEGER)"
+                )
+                conn.execute("CREATE TABLE module_headers (module_id INTEGER, header_comment TEXT)")
+
+            errors = module.check_rlm_schema(db_path)
+
+        self.assertTrue(any("role_rights" in error for error in errors), errors)
+        self.assertTrue(any("object_attributes" in error for error in errors), errors)
+        self.assertTrue(any("functional_options" in error for error in errors), errors)
 
     def test_rlm_schema_contract_reports_old_builder_version(self) -> None:
         module = load_contract_module()
