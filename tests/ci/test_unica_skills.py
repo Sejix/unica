@@ -829,6 +829,56 @@ class UnicaSkillRoutingTests(unittest.TestCase):
         self.assertIn("availableValue=", skd_edit)
         self.assertIn("value=", skd_edit)
 
+    def test_form_skills_track_upstream_dsl_features_through_unica_boundary(self) -> None:
+        form_compile = (self.skill_root() / "form-compile" / "SKILL.md").read_text(
+            encoding="utf-8"
+        )
+        form_edit = (self.skill_root() / "form-edit" / "SKILL.md").read_text(encoding="utf-8")
+        form_info = (self.skill_root() / "form-info" / "SKILL.md").read_text(encoding="utf-8")
+        form_validate = (self.skill_root() / "form-validate" / "SKILL.md").read_text(
+            encoding="utf-8"
+        )
+        form_dsl = (self.reference_root() / "specs" / "form-dsl-spec.md").read_text(
+            encoding="utf-8"
+        )
+        form_patterns = (self.reference_root() / "specs" / "form-patterns.md").read_text(
+            encoding="utf-8"
+        )
+
+        for text in [form_compile, form_edit, form_info, form_validate]:
+            self.assertIn("MCP `unica`", text)
+            self.assertNotIn("CLAUDE_SKILL_DIR", text)
+            self.assertNotIn("powershell.exe", text)
+            self.assertNotIn(".ps1", text)
+            self.assertNotIn(".py", text)
+
+        for token in [
+            "mobileCommandBarContent",
+            "reportResult",
+            "reportFormType",
+            "choiceParameters",
+            "choiceParameterLinks",
+            "availableTypes",
+            "extendedTooltip",
+            "commandBar",
+            "contextMenu",
+            "roles",
+            "CommandInterface",
+            "NavigationPanel",
+            "GanttChart",
+            "chart",
+            "dynamicDataRead",
+        ]:
+            with self.subTest(token=token):
+                self.assertIn(token, form_dsl)
+
+        self.assertIn("Выпадающее меню", form_patterns)
+        self.assertIn("mobileCommandBarContent", form_compile)
+        self.assertIn("choiceParameters", form_compile)
+        self.assertIn("availableTypes", form_compile)
+        self.assertIn("unica.form.info", form_edit)
+        self.assertIn("unica.form.validate", form_edit)
+
     def test_source_set_format_detection_contract_is_documented(self) -> None:
         docs = {
             "workspace-runtime": self.reference_root()

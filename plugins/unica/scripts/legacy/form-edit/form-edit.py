@@ -1,5 +1,4 @@
 # form-edit v1.1 — Edit 1C managed form elements (Python port)
-# Source: https://github.com/Nikolay-Shirokov/cc-1c-skills
 import argparse
 import json
 import os
@@ -1367,4 +1366,4 @@ if added_attrs:
 if added_cmds:
     total_parts.append(f"{len(added_cmds)} command(s)")
 print(f"Total: {', '.join(total_parts)}")
-print("Run /form-validate to verify.")
+print("Run unica.form.validate to verify.")

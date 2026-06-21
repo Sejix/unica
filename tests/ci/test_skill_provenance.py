@@ -174,12 +174,36 @@ class SkillProvenanceTests(unittest.TestCase):
         self.assertNotIn("sha256", payload)
         self.assertNotIn("Digest", payload)
         self.assertEqual(upstreams["cc-1c-skills"]["commitsSinceBaseline"], 541)
-        self.assertEqual(upstreams["cc-1c-skills"]["changedWatchedPathCount"], 70)
+        self.assertEqual(upstreams["cc-1c-skills"]["changedWatchedPathCount"], 41)
         self.assertNotIn("web-test", upstreams["cc-1c-skills"]["affectedEntries"])
-        for skill in ("skd-compile", "skd-edit", "skd-info", "skd-validate"):
+        for skill in (
+            "skd-compile",
+            "skd-edit",
+            "skd-info",
+            "skd-validate",
+            "form-add",
+            "form-compile",
+            "form-edit",
+            "form-info",
+            "form-patterns",
+            "form-remove",
+            "form-validate",
+        ):
             self.assertNotIn(skill, upstreams["cc-1c-skills"]["affectedEntries"])
         self.assertIn("web-test", upstreams["cc-1c-skills"]["reviewedEntries"])
-        for skill in ("skd-compile", "skd-edit", "skd-info", "skd-validate"):
+        for skill in (
+            "skd-compile",
+            "skd-edit",
+            "skd-info",
+            "skd-validate",
+            "form-add",
+            "form-compile",
+            "form-edit",
+            "form-info",
+            "form-patterns",
+            "form-remove",
+            "form-validate",
+        ):
             self.assertIn(skill, upstreams["cc-1c-skills"]["reviewedEntries"])
         web_test_decision = next(
             item
@@ -187,7 +211,19 @@ class SkillProvenanceTests(unittest.TestCase):
             if item["skill"] == "web-test"
         )
         self.assertEqual(web_test_decision["decision"], "ported")
-        for skill in ("skd-compile", "skd-edit", "skd-info", "skd-validate"):
+        for skill in (
+            "skd-compile",
+            "skd-edit",
+            "skd-info",
+            "skd-validate",
+            "form-add",
+            "form-compile",
+            "form-edit",
+            "form-info",
+            "form-patterns",
+            "form-remove",
+            "form-validate",
+        ):
             decision = next(
                 item
                 for item in upstreams["cc-1c-skills"]["entryDecisions"]

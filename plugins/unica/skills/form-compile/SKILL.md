@@ -22,7 +22,7 @@ allowed-tools:
 1. **JSON DSL** — из JSON-определения формы
 2. **From object** (`-FromObject`) — автоматически из метаданных объекта 1С по пресету ERP
 
-> **При проектировании формы с нуля (5+ элементов или нечёткие требования)** — вызовите `/form-patterns` для загрузки справочника. Для простых форм (1–3 поля) — не нужно.
+> **При проектировании формы с нуля (5+ элементов или нечёткие требования)** — используй справочник `form-patterns`. Для простых форм (1-3 поля) — не нужно.
 
 ## Параметры
 
@@ -91,6 +91,16 @@ allowed-tools:
 - `properties` — свойства формы: `autoTitle`, `windowOpeningMode`, `commandBarLocation`, `saveDataInSettings`, `width`, `height` и др.
 - `events` — обработчики событий формы (ключ: имя события 1С, значение: имя процедуры)
 - `excludedCommands` — исключённые стандартные команды
+
+### Новые возможности DSL
+
+- Форма отчёта: `reportResult`, `reportFormType`, `reportResultViewMode`.
+- Управление выбором: `choiceParameters`, `choiceParameterLinks`, `availableTypes`.
+- Служебные элементы и панели: `extendedTooltip`, `commandBar`, `contextMenu`, `mobileCommandBarContent`.
+- Ролевое ограничение элементов и команд: `roles`.
+- Командный интерфейс и навигация: `CommandInterface`, `NavigationPanel`.
+- Специальные визуальные типы: `chart`, `GanttChart`.
+- Динамические списки: `dynamicDataRead` в настройках реквизита `DynamicList`.
 
 ### Элементы (ключ определяет тип)
 
@@ -492,9 +502,9 @@ allowed-tools:
 
 ## Workflow
 
-1. **Компиляция**: `/form-compile` генерирует `Form.xml` и автоматически регистрирует `<Form>` в `ChildObjects` родительского объекта (если OutputPath следует конвенции `.../TypePlural/ObjectName/Forms/FormName/Ext/Form.xml`).
-2. **Метаданные формы** (`ФормаСписка.xml`) и `Module.bsl` создаёт `/form-add`. Если `/form-add` ещё не вызывался — вызови после `/form-compile`. Он не перезаписывает существующий Form.xml.
-3. **Проверка**: `/form-validate`, `/form-info`.
+1. **Компиляция**: `unica.form.compile` генерирует `Form.xml` и автоматически регистрирует `<Form>` в `ChildObjects` родительского объекта (если OutputPath следует конвенции `.../TypePlural/ObjectName/Forms/FormName/Ext/Form.xml`).
+2. **Метаданные формы** (`ФормаСписка.xml`) и `Module.bsl` создаёт `unica.form.add`. Если `unica.form.add` ещё не вызывался — вызови его после `unica.form.compile`. Он не перезаписывает существующий Form.xml.
+3. **Проверка**: `unica.form.validate`, затем `unica.form.info`.
 
 ## Верификация
 

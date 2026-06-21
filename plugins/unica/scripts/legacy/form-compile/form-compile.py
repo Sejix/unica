@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 # form-compile v1.172 — Compile 1C managed form from JSON or object metadata
-# Source: https://github.com/Nikolay-Shirokov/cc-1c-skills
 import argparse
 import copy
 import json

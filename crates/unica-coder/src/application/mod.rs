@@ -648,8 +648,9 @@ fn configuration_tools() -> Vec<ToolSpec> {
             description: "Add managed form metadata and files.",
             mutating: true,
             cache_access: cache_access_for("form-add", Some(DomainEventKind::FormChanged)),
-            handler: ToolHandler::NativeOperation {
-                operation: "form-add",
+            handler: ToolHandler::LegacyScript {
+                skill: "form-add",
+                script: "form-add.py",
                 event: Some(DomainEventKind::FormChanged),
             },
         },
@@ -658,8 +659,9 @@ fn configuration_tools() -> Vec<ToolSpec> {
             description: "Compile managed Form.xml from JSON DSL or metadata.",
             mutating: true,
             cache_access: cache_access_for("form-compile", Some(DomainEventKind::FormChanged)),
-            handler: ToolHandler::NativeOperation {
-                operation: "form-compile",
+            handler: ToolHandler::LegacyScript {
+                skill: "form-compile",
+                script: "form-compile.py",
                 event: Some(DomainEventKind::FormChanged),
             },
         },
@@ -668,8 +670,9 @@ fn configuration_tools() -> Vec<ToolSpec> {
             description: "Edit managed Form.xml elements, attributes, and commands.",
             mutating: true,
             cache_access: cache_access_for("form-edit", Some(DomainEventKind::FormChanged)),
-            handler: ToolHandler::NativeOperation {
-                operation: "form-edit",
+            handler: ToolHandler::LegacyScript {
+                skill: "form-edit",
+                script: "form-edit.py",
                 event: Some(DomainEventKind::FormChanged),
             },
         },
@@ -678,8 +681,9 @@ fn configuration_tools() -> Vec<ToolSpec> {
             description: "Inspect managed Form.xml.",
             mutating: false,
             cache_access: cache_access_for("form-info", None),
-            handler: ToolHandler::NativeOperation {
-                operation: "form-info",
+            handler: ToolHandler::LegacyScript {
+                skill: "form-info",
+                script: "form-info.py",
                 event: None,
             },
         },
@@ -688,8 +692,9 @@ fn configuration_tools() -> Vec<ToolSpec> {
             description: "Remove a managed form and registration.",
             mutating: true,
             cache_access: cache_access_for("form-remove", Some(DomainEventKind::FormChanged)),
-            handler: ToolHandler::NativeOperation {
-                operation: "form-remove",
+            handler: ToolHandler::LegacyScript {
+                skill: "form-remove",
+                script: "remove-form.py",
                 event: Some(DomainEventKind::FormChanged),
             },
         },
@@ -698,8 +703,9 @@ fn configuration_tools() -> Vec<ToolSpec> {
             description: "Validate managed Form.xml.",
             mutating: false,
             cache_access: cache_access_for("form-validate", None),
-            handler: ToolHandler::NativeOperation {
-                operation: "form-validate",
+            handler: ToolHandler::LegacyScript {
+                skill: "form-validate",
+                script: "form-validate.py",
                 event: None,
             },
         },
@@ -990,7 +996,8 @@ mod tests {
             .unwrap();
         assert!(result.ok);
         assert!(result.summary.contains("dry run"));
-        assert!(result.command.is_none());
+        let command = result.command.as_ref().expect("legacy dry run previews command");
+        assert!(command.join(" ").contains("form-edit.py"));
         assert_eq!(result.cache.mode, "dry-run");
         assert!(result.cache.events.contains(&"FormChanged".to_string()));
         assert!(result
@@ -1153,6 +1160,51 @@ mod tests {
                         .join("../..")
                         .join("plugins")
                         .join("unica")
+                        .join("skills")
+                        .join(skill)
+                        .join("scripts")
+                        .join(script);
+                    assert!(
+                        !prompt_visible_script.exists(),
+                        "{tool_name} must not ship skill-local operation script {}",
+                        prompt_visible_script.display()
+                    );
+                }
+                other => panic!("{tool_name} should route through hidden legacy script, got {other:?}"),
+            }
+        }
+    }
+
+    #[test]
+    fn form_tools_route_through_hidden_legacy_scripts_for_full_donor_contract() {
+        let expected = [
+            ("unica.form.add", "form-add", "form-add.py"),
+            ("unica.form.compile", "form-compile", "form-compile.py"),
+            ("unica.form.edit", "form-edit", "form-edit.py"),
+            ("unica.form.info", "form-info", "form-info.py"),
+            ("unica.form.remove", "form-remove", "remove-form.py"),
+            ("unica.form.validate", "form-validate", "form-validate.py"),
+        ];
+        for (tool_name, expected_skill, expected_script) in expected {
+            let tool = tools()
+                .into_iter()
+                .find(|tool| tool.name == tool_name)
+                .expect("form tool exists");
+            match tool.handler {
+                ToolHandler::LegacyScript { skill, script, .. } => {
+                    assert_eq!(skill, expected_skill);
+                    assert_eq!(script, expected_script);
+                    let plugin_root = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+                        .join("../..")
+                        .join("plugins")
+                        .join("unica");
+                    let hidden_script = legacy_script_path(&plugin_root, skill, script);
+                    assert!(
+                        hidden_script.is_file(),
+                        "{tool_name} routes to missing hidden script {}",
+                        hidden_script.display()
+                    );
+                    let prompt_visible_script = plugin_root
                         .join("skills")
                         .join(skill)
                         .join("scripts")

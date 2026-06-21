@@ -597,6 +597,10 @@ fn write_path_args(tool: ToolSpec) -> &'static [&'static str] {
             _ => &[],
         },
         ToolHandler::LegacyScript { skill, .. } => match skill {
+            "form-add" => &["ObjectPath", "objectPath"],
+            "form-compile" => &["OutputPath", "outputPath"],
+            "form-edit" => &["FormPath", "formPath"],
+            "form-remove" => &["SrcDir", "srcDir"],
             "skd-compile" => &["OutputPath", "outputPath"],
             "skd-edit" => &["TemplatePath", "templatePath"],
             _ => &[],
@@ -611,7 +615,17 @@ fn is_native_xml_tool(tool: ToolSpec) -> bool {
         || matches!(
             tool.handler,
             ToolHandler::LegacyScript {
-                skill: "skd-compile" | "skd-edit" | "skd-info" | "skd-validate",
+                skill:
+                    "form-add"
+                        | "form-compile"
+                        | "form-edit"
+                        | "form-info"
+                        | "form-remove"
+                        | "form-validate"
+                        | "skd-compile"
+                        | "skd-edit"
+                        | "skd-info"
+                        | "skd-validate",
                 ..
             }
         )
@@ -719,6 +733,7 @@ fn required_args(tool: &ToolSpec) -> Vec<&'static str> {
             _ => Vec::new(),
         },
         ToolHandler::LegacyScript { skill, .. } => match skill {
+            "form-info" | "form-validate" | "form-edit" => vec!["FormPath"],
             "skd-info" | "skd-validate" | "skd-edit" => vec!["TemplatePath"],
             _ => Vec::new(),
         },

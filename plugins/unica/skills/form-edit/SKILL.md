@@ -22,9 +22,7 @@ allowed-tools:
 
 ## Использование
 
-```
-/form-edit <FormPath> <JsonPath>
-```
+Используй MCP `unica` tool `unica.form.edit` с `FormPath` и `JsonPath`.
 
 ## Параметры
 
@@ -104,7 +102,7 @@ allowed-tools:
 
 ### Типы элементов
 
-Те же DSL-ключи, что в `/form-compile`:
+Те же DSL-ключи, что в `unica.form.compile`:
 
 | Ключ | XML тег | Companions |
 |------|---------|------------|
@@ -154,8 +152,8 @@ allowed-tools:
 
 ## Workflow
 
-1. `/form-info` — посмотреть текущую структуру формы
+1. `unica.form.info` — посмотреть текущую структуру формы
 2. Создать JSON с описанием добавлений
-3. `/form-edit` — добавить в форму
-4. `/form-validate` — проверить корректность
-5. `/form-info` — убедиться что добавилось правильно
+3. `unica.form.edit` — добавить в форму
+4. `unica.form.validate` — проверить корректность
+5. `unica.form.info` — убедиться что добавилось правильно

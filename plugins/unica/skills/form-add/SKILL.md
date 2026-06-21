@@ -24,9 +24,7 @@ allowed-tools:
 
 ## Usage
 
-```
-/form-add <ObjectPath> <FormName> [Purpose] [Synonym] [--set-default]
-```
+Используй MCP `unica` tool `unica.form.add` с `ObjectPath`, `FormName`, `Purpose`, `Synonym` и `SetDefault`.
 
 | Параметр    | Обязательный | По умолчанию | Описание                                     |
 |-------------|:------------:|--------------|----------------------------------------------|
@@ -166,7 +164,7 @@ allowed-tools:
 ```
 ## Workflow
 
-1. `/form-add` — создать каркас формы
-2. `/form-compile` или `/form-edit` — наполнить Form.xml элементами
-3. `/form-validate` — проверить корректность
-4. `/form-info` — проанализировать результат
+1. `unica.form.add` — создать каркас формы
+2. `unica.form.compile` или `unica.form.edit` — наполнить Form.xml элементами
+3. `unica.form.validate` — проверить корректность
+4. `unica.form.info` — проанализировать результат

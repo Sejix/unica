@@ -25,9 +25,7 @@ allowed-tools:
 
 ## Usage
 
-```
-/form-remove <ObjectName> <FormName>
-```
+Используй MCP `unica` tool `unica.form.remove` с `ObjectName`, `FormName` и `SrcDir`.
 
 | Параметр   | Обязательный | По умолчанию | Описание                            |
 |------------|:------------:|--------------|-------------------------------------|
