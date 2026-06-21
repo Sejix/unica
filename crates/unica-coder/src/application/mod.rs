@@ -7,14 +7,18 @@ use crate::infrastructure::internal_adapters::{
     StandardsAdapter,
 };
 use crate::infrastructure::legacy_scripts::LegacyScriptAdapter;
-use crate::infrastructure::native_operations::NativeOperationAdapter;
+use crate::infrastructure::native_operations::common::{
+    absolutize, path_arg, required_string, support_guard_violation, SupportGuardRequirement,
+    SupportGuardViolation,
+};
+use crate::infrastructure::native_operations::{meta, template, NativeOperationAdapter};
 use crate::infrastructure::workspace_index::WorkspaceIndexService;
 use crate::infrastructure::workspace_state::WorkspaceStateRepository;
 use crate::infrastructure::AdapterOutcome;
 use serde::Serialize;
 use serde_json::{Map, Value};
 use std::env;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 mod tool_contracts;
 pub use tool_contracts::input_schema_for_tool;
@@ -306,6 +310,30 @@ fn call_tool(spec: ToolSpec, args: &Map<String, Value>) -> Result<OperationResul
     } else {
         Default::default()
     };
+    let support_guard_warning = if spec.mutating && !dry_run {
+        match support_guard_check(spec, args, &context)? {
+            SupportGuardCheck::Allow => None,
+            SupportGuardCheck::Warn(warning) => Some(warning),
+            SupportGuardCheck::Block(mut outcome) => {
+                outcome.warnings.extend(index_report.warnings);
+                let cache = state_repo.report(&context, &[], dry_run, spec.cache_access)?;
+                return Ok(OperationResult {
+                    ok: outcome.ok,
+                    summary: outcome.summary,
+                    changes: outcome.changes,
+                    warnings: outcome.warnings,
+                    errors: outcome.errors,
+                    artifacts: outcome.artifacts,
+                    cache,
+                    stdout: outcome.stdout,
+                    stderr: outcome.stderr,
+                    command: outcome.command,
+                });
+            }
+        }
+    } else {
+        None
+    };
 
     let mut outcome = match spec.handler {
         ToolHandler::LegacyScript { skill, script, .. } => LegacyScriptAdapter::invoke(
@@ -358,6 +386,9 @@ fn call_tool(spec: ToolSpec, args: &Map<String, Value>) -> Result<OperationResul
         .invoke(spec.name, args, &context, dry_run, spec.mutating)?,
         ToolHandler::StandardsAdapter { operation } => StandardsAdapter::invoke(operation, args),
     };
+    if let Some(warning) = support_guard_warning {
+        outcome.warnings.insert(0, warning);
+    }
     outcome.warnings.extend(index_report.warnings);
 
     let events = if should_emit_events(spec, dry_run, &outcome) {
@@ -388,6 +419,295 @@ fn should_emit_events(spec: ToolSpec, dry_run: bool, outcome: &AdapterOutcome) -
 fn uses_bsl_index(spec: ToolSpec) -> bool {
     spec.cache_access.reads.contains(&"bsl_index")
         || spec.cache_access.writes.contains(&"bsl_index")
+}
+
+enum SupportGuardCheck {
+    Allow,
+    Warn(String),
+    Block(AdapterOutcome),
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum SupportGuardMode {
+    Deny,
+    Warn,
+    Off,
+}
+
+fn support_guard_check(
+    spec: ToolSpec,
+    args: &Map<String, Value>,
+    context: &WorkspaceContext,
+) -> Result<SupportGuardCheck, String> {
+    let Some((target_path, requirement)) = support_guard_target(spec, args, context) else {
+        return Ok(SupportGuardCheck::Allow);
+    };
+    let Some(violation) = support_guard_violation(&target_path, requirement) else {
+        return Ok(SupportGuardCheck::Allow);
+    };
+
+    Ok(match support_guard_mode(&violation.config_dir, context) {
+        SupportGuardMode::Off => SupportGuardCheck::Allow,
+        SupportGuardMode::Warn => SupportGuardCheck::Warn(format!(
+            "[support guard] ПРЕДУПРЕЖДЕНИЕ: {}. Цель: {}",
+            violation.reason,
+            violation.target_path.display()
+        )),
+        SupportGuardMode::Deny => {
+            SupportGuardCheck::Block(support_guard_blocked_outcome(spec, &violation, requirement))
+        }
+    })
+}
+
+fn support_guard_target(
+    spec: ToolSpec,
+    args: &Map<String, Value>,
+    context: &WorkspaceContext,
+) -> Option<(PathBuf, SupportGuardRequirement)> {
+    let operation = support_guard_operation(spec)?;
+    let editable = SupportGuardRequirement::Editable;
+    let removed = SupportGuardRequirement::Removed;
+    match operation {
+        "cf-edit" => support_guard_path_arg(
+            args,
+            context,
+            &["configPath", "ConfigPath", "path", "Path"],
+            editable,
+        ),
+        "meta-compile" => {
+            support_guard_path_arg(args, context, &["outputDir", "OutputDir"], editable)
+        }
+        "meta-edit" => support_guard_path_arg(
+            args,
+            context,
+            &["objectPath", "ObjectPath", "path", "Path"],
+            editable,
+        ),
+        "meta-remove" => {
+            support_guard_meta_remove_target(args, context).map(|path| (path, removed))
+        }
+        "form-add" => {
+            support_guard_path_arg(args, context, &["objectPath", "ObjectPath"], editable)
+        }
+        "form-compile" => {
+            support_guard_path_arg(args, context, &["outputPath", "OutputPath"], editable)
+        }
+        "form-edit" => support_guard_path_arg(args, context, &["formPath", "FormPath"], editable),
+        "form-remove" => {
+            support_guard_object_name_target(args, context).map(|path| (path, editable))
+        }
+        "interface-edit" => support_guard_path_arg(
+            args,
+            context,
+            &["ciPath", "CIPath", "path", "Path"],
+            editable,
+        ),
+        "subsystem-compile" => {
+            support_guard_path_arg(args, context, &["outputDir", "OutputDir"], editable)
+        }
+        "subsystem-edit" => {
+            support_guard_path_arg(args, context, &["subsystemPath", "SubsystemPath"], editable)
+        }
+        "template-add" | "template-remove" => {
+            support_guard_object_name_target(args, context).map(|path| (path, editable))
+        }
+        "skd-compile" | "mxl-compile" => {
+            support_guard_path_arg(args, context, &["outputPath", "OutputPath"], editable)
+        }
+        "skd-edit" => {
+            support_guard_path_arg(args, context, &["templatePath", "TemplatePath"], editable)
+        }
+        "role-compile" => {
+            support_guard_path_arg(args, context, &["outputDir", "OutputDir"], editable)
+        }
+        _ => None,
+    }
+}
+
+fn support_guard_operation(spec: ToolSpec) -> Option<&'static str> {
+    match spec.handler {
+        ToolHandler::NativeOperation { operation, .. } => Some(operation),
+        ToolHandler::LegacyScript { skill, .. } => Some(skill),
+        _ => None,
+    }
+}
+
+fn support_guard_path_arg(
+    args: &Map<String, Value>,
+    context: &WorkspaceContext,
+    names: &[&str],
+    requirement: SupportGuardRequirement,
+) -> Option<(PathBuf, SupportGuardRequirement)> {
+    path_arg(args, names).map(|path| (absolutize(path, &context.cwd), requirement))
+}
+
+fn support_guard_meta_remove_target(
+    args: &Map<String, Value>,
+    context: &WorkspaceContext,
+) -> Option<PathBuf> {
+    let config_dir = path_arg(args, &["configDir", "ConfigDir"])?;
+    let object = required_string(args, &["object", "Object"], "Object").ok()?;
+    let (object_type, object_name) = object.split_once('.')?;
+    let type_dir = meta::meta_remove_type_plural(object_type)?;
+    Some(
+        absolutize(config_dir, &context.cwd)
+            .join(type_dir)
+            .join(format!("{object_name}.xml")),
+    )
+}
+
+fn support_guard_object_name_target(
+    args: &Map<String, Value>,
+    context: &WorkspaceContext,
+) -> Option<PathBuf> {
+    let object_name = required_string(
+        args,
+        &["objectName", "ObjectName", "processorName", "ProcessorName"],
+        "ObjectName",
+    )
+    .ok()?;
+    let src_dir = path_arg(args, &["srcDir", "SrcDir"]).unwrap_or_else(|| PathBuf::from("src"));
+    let src_dir = absolutize(src_dir, &context.cwd);
+    let direct = src_dir.join(format!("{object_name}.xml"));
+    if direct.exists() {
+        return Some(direct);
+    }
+    for folder in template::template_add_object_type_folders() {
+        let candidate = src_dir.join(folder).join(format!("{object_name}.xml"));
+        if candidate.exists() {
+            return Some(candidate);
+        }
+    }
+    Some(direct)
+}
+
+fn support_guard_mode(config_dir: &Path, context: &WorkspaceContext) -> SupportGuardMode {
+    let Some(project_file) = find_v8_project_file(&context.cwd)
+        .or_else(|| find_v8_project_file(config_dir))
+        .or_else(|| find_v8_project_file(&context.workspace_root))
+    else {
+        return SupportGuardMode::Deny;
+    };
+    let Ok(text) = std::fs::read_to_string(&project_file) else {
+        return SupportGuardMode::Deny;
+    };
+    let Ok(project) = serde_json::from_str::<Value>(text.trim_start_matches('\u{feff}')) else {
+        return SupportGuardMode::Deny;
+    };
+    let project_dir = project_file.parent().unwrap_or_else(|| Path::new(""));
+    let config_dir = normalize_guard_path(config_dir);
+
+    if let Some(databases) = project.get("databases").and_then(Value::as_array) {
+        for database in databases {
+            let Some(config_src) = database.get("configSrc").and_then(Value::as_str) else {
+                continue;
+            };
+            let config_src = PathBuf::from(config_src);
+            let config_src = if config_src.is_absolute() {
+                config_src
+            } else {
+                project_dir.join(config_src)
+            };
+            let config_src = normalize_guard_path(&config_src);
+            if (config_dir == config_src || config_dir.starts_with(&config_src))
+                && database
+                    .get("editingAllowedCheck")
+                    .and_then(Value::as_str)
+                    .is_some()
+            {
+                return support_guard_mode_value(
+                    database
+                        .get("editingAllowedCheck")
+                        .and_then(Value::as_str)
+                        .expect("checked above"),
+                );
+            }
+        }
+    }
+
+    project
+        .get("editingAllowedCheck")
+        .and_then(Value::as_str)
+        .map(support_guard_mode_value)
+        .unwrap_or(SupportGuardMode::Deny)
+}
+
+fn find_v8_project_file(start: &Path) -> Option<PathBuf> {
+    let mut current = if start.is_dir() {
+        start.to_path_buf()
+    } else {
+        start.parent()?.to_path_buf()
+    };
+    for _ in 0..20 {
+        let candidate = current.join(".v8-project.json");
+        if candidate.is_file() {
+            return Some(candidate);
+        }
+        let Some(parent) = current.parent() else {
+            break;
+        };
+        if parent == current {
+            break;
+        }
+        current = parent.to_path_buf();
+    }
+    None
+}
+
+fn support_guard_mode_value(value: &str) -> SupportGuardMode {
+    match value {
+        "warn" => SupportGuardMode::Warn,
+        "off" => SupportGuardMode::Off,
+        _ => SupportGuardMode::Deny,
+    }
+}
+
+fn normalize_guard_path(path: &Path) -> PathBuf {
+    path.canonicalize().unwrap_or_else(|_| path.to_path_buf())
+}
+
+fn support_guard_blocked_outcome(
+    spec: ToolSpec,
+    violation: &SupportGuardViolation,
+    requirement: SupportGuardRequirement,
+) -> AdapterOutcome {
+    let state = match violation.code {
+        "capability-off" => format!(
+            "Состояние: у всей конфигурации выключена возможность изменения; объект `{}` редактировать нельзя.",
+            violation.target_path.display()
+        ),
+        "not-removed" => format!(
+            "Состояние: объект `{}` остается на поддержке; удаление разорвет обновления поставщика.",
+            violation.target_path.display()
+        ),
+        _ => format!(
+            "Состояние: объект `{}` на замке; прямая правка сломает обновления поставщика.",
+            violation.target_path.display()
+        ),
+    };
+    let destructive_note = if requirement == SupportGuardRequirement::Removed {
+        "Удаление допустимо только после явного снятия объекта с поддержки."
+    } else {
+        "Для доработки типовой конфигурации используй CFE flow через `unica.cfe.borrow` / `unica.cfe.patch_method`; прямое изменение поддержки должно быть отдельным support-edit flow, не скрытым побочным эффектом."
+    };
+    let message = format!(
+        "[support guard] Редактирование отклонено: {}.\n{}\n{}\nСнять проверку для этой базы можно только явно: `editingAllowedCheck` = `warn` или `off` в `.v8-project.json`.",
+        violation.reason, state, destructive_note
+    );
+    AdapterOutcome {
+        ok: false,
+        summary: format!("{} blocked by support guard", spec.name),
+        changes: Vec::new(),
+        warnings: Vec::new(),
+        errors: vec![format!(
+            "[support guard] {}: {}",
+            violation.code, violation.reason
+        )],
+        artifacts: vec![violation.target_path.display().to_string()],
+        stdout: None,
+        stderr: Some(format!("{message}\n")),
+        command: None,
+    }
 }
 
 fn domain_events(spec: ToolSpec, args: &Map<String, Value>) -> Vec<DomainEvent> {
@@ -1315,6 +1635,62 @@ mod tests {
     }
 
     #[test]
+    fn mutating_cf_edit_blocks_locked_configuration_directory_target() {
+        let root = std::env::temp_dir().join(format!("unica-cf-guard-dir-{}", std::process::id()));
+        let workspace = root.join("workspace");
+        let src = workspace.join("src");
+        let ext = src.join("Ext");
+        std::fs::create_dir_all(&ext).unwrap();
+        std::fs::write(
+            workspace.join("v8project.yaml"),
+            "format: DESIGNER\nsource-set:\n  - name: main\n    type: CONFIGURATION\n    path: src\n",
+        )
+        .unwrap();
+        let config_path = src.join("Configuration.xml");
+        std::fs::write(
+            &config_path,
+            support_test_configuration_xml("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"),
+        )
+        .unwrap();
+        std::fs::write(
+            ext.join("ParentConfigurations.bin"),
+            support_test_parent_configurations_bin(
+                "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+                "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+                "cccccccc-cccc-cccc-cccc-cccccccccccc",
+            ),
+        )
+        .unwrap();
+        let before = std::fs::read_to_string(&config_path).unwrap();
+        let mut args = Map::new();
+        args.insert(
+            "cwd".to_string(),
+            Value::String(workspace.display().to_string()),
+        );
+        args.insert("dryRun".to_string(), Value::Bool(false));
+        args.insert("ConfigPath".to_string(), Value::String("src".to_string()));
+        args.insert(
+            "Operation".to_string(),
+            Value::String("modify-property".to_string()),
+        );
+        args.insert(
+            "Value".to_string(),
+            Value::String("Version=2.0".to_string()),
+        );
+
+        let result = UnicaApplication::new()
+            .call_tool("unica.cf.edit", &args)
+            .unwrap();
+
+        assert!(!result.ok);
+        assert!(result.summary.contains("support guard"));
+        assert!(result.errors.join("\n").contains("на замке"));
+        assert_eq!(std::fs::read_to_string(&config_path).unwrap(), before);
+
+        let _ = std::fs::remove_dir_all(root);
+    }
+
+    #[test]
     fn meta_info_reports_locked_vendor_support_state_through_unica_boundary() {
         let root = std::env::temp_dir().join(format!("unica-meta-support-{}", std::process::id()));
         let workspace = root.join("workspace");
@@ -1366,6 +1742,204 @@ mod tests {
         assert!(stdout.contains("Поддержка: на замке"));
         assert!(stdout.contains("cfe-*"));
         assert!(!stdout.contains("powershell.exe"));
+
+        let _ = std::fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn mutating_meta_edit_blocks_locked_vendor_object_by_default() {
+        let root = std::env::temp_dir().join(format!("unica-meta-guard-{}", std::process::id()));
+        let workspace = root.join("workspace");
+        let src = workspace.join("src");
+        let ext = src.join("Ext");
+        let catalogs = src.join("Catalogs");
+        std::fs::create_dir_all(&ext).unwrap();
+        std::fs::create_dir_all(&catalogs).unwrap();
+        std::fs::write(
+            workspace.join("v8project.yaml"),
+            "format: DESIGNER\nsource-set:\n  - name: main\n    type: CONFIGURATION\n    path: src\n",
+        )
+        .unwrap();
+        std::fs::write(
+            src.join("Configuration.xml"),
+            support_test_configuration_xml("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"),
+        )
+        .unwrap();
+        let object_path = catalogs.join("Items.xml");
+        std::fs::write(
+            &object_path,
+            support_test_catalog_xml("bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb"),
+        )
+        .unwrap();
+        std::fs::write(
+            ext.join("ParentConfigurations.bin"),
+            support_test_parent_configurations_bin(
+                "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+                "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb",
+                "cccccccc-cccc-cccc-cccc-cccccccccccc",
+            ),
+        )
+        .unwrap();
+        let before = std::fs::read_to_string(&object_path).unwrap();
+        let mut args = Map::new();
+        args.insert(
+            "cwd".to_string(),
+            Value::String(workspace.display().to_string()),
+        );
+        args.insert("dryRun".to_string(), Value::Bool(false));
+        args.insert(
+            "ObjectPath".to_string(),
+            Value::String("src/Catalogs/Items.xml".to_string()),
+        );
+        args.insert(
+            "Operation".to_string(),
+            Value::String("modify-property".to_string()),
+        );
+        args.insert(
+            "Value".to_string(),
+            Value::String("Name=Changed".to_string()),
+        );
+
+        let result = UnicaApplication::new()
+            .call_tool("unica.meta.edit", &args)
+            .unwrap();
+
+        assert!(!result.ok);
+        assert!(result.summary.contains("support guard"));
+        assert!(result.errors.join("\n").contains("на замке"));
+        assert!(result.cache.events.is_empty());
+        assert_eq!(std::fs::read_to_string(&object_path).unwrap(), before);
+
+        let _ = std::fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn mutating_meta_edit_warn_mode_allows_locked_vendor_object_with_warning() {
+        let root =
+            std::env::temp_dir().join(format!("unica-meta-guard-warn-{}", std::process::id()));
+        let workspace = root.join("workspace");
+        let src = workspace.join("src");
+        let ext = src.join("Ext");
+        let catalogs = src.join("Catalogs");
+        std::fs::create_dir_all(&ext).unwrap();
+        std::fs::create_dir_all(&catalogs).unwrap();
+        std::fs::write(
+            workspace.join("v8project.yaml"),
+            "format: DESIGNER\nsource-set:\n  - name: main\n    type: CONFIGURATION\n    path: src\n",
+        )
+        .unwrap();
+        std::fs::write(
+            workspace.join(".v8-project.json"),
+            r#"{"editingAllowedCheck":"warn"}"#,
+        )
+        .unwrap();
+        std::fs::write(
+            src.join("Configuration.xml"),
+            support_test_configuration_xml("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"),
+        )
+        .unwrap();
+        let object_path = catalogs.join("Items.xml");
+        std::fs::write(
+            &object_path,
+            support_test_catalog_xml("bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb"),
+        )
+        .unwrap();
+        std::fs::write(
+            ext.join("ParentConfigurations.bin"),
+            support_test_parent_configurations_bin(
+                "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+                "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb",
+                "cccccccc-cccc-cccc-cccc-cccccccccccc",
+            ),
+        )
+        .unwrap();
+        let mut args = Map::new();
+        args.insert(
+            "cwd".to_string(),
+            Value::String(workspace.display().to_string()),
+        );
+        args.insert("dryRun".to_string(), Value::Bool(false));
+        args.insert(
+            "ObjectPath".to_string(),
+            Value::String("src/Catalogs/Items.xml".to_string()),
+        );
+        args.insert(
+            "Operation".to_string(),
+            Value::String("modify-property".to_string()),
+        );
+        args.insert(
+            "Value".to_string(),
+            Value::String("Name=Changed".to_string()),
+        );
+
+        let result = UnicaApplication::new()
+            .call_tool("unica.meta.edit", &args)
+            .unwrap();
+
+        assert!(result.ok);
+        assert!(result.warnings.join("\n").contains("support guard"));
+        assert!(std::fs::read_to_string(&object_path)
+            .unwrap()
+            .contains("<Name>Changed</Name>"));
+
+        let _ = std::fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn mutating_meta_remove_blocks_supported_object_until_off_support() {
+        let root =
+            std::env::temp_dir().join(format!("unica-meta-guard-remove-{}", std::process::id()));
+        let workspace = root.join("workspace");
+        let src = workspace.join("src");
+        let ext = src.join("Ext");
+        let catalogs = src.join("Catalogs");
+        std::fs::create_dir_all(&ext).unwrap();
+        std::fs::create_dir_all(&catalogs).unwrap();
+        std::fs::write(
+            workspace.join("v8project.yaml"),
+            "format: DESIGNER\nsource-set:\n  - name: main\n    type: CONFIGURATION\n    path: src\n",
+        )
+        .unwrap();
+        std::fs::write(
+            src.join("Configuration.xml"),
+            support_test_configuration_xml("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"),
+        )
+        .unwrap();
+        let object_path = catalogs.join("Items.xml");
+        std::fs::write(
+            &object_path,
+            support_test_catalog_xml("bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb"),
+        )
+        .unwrap();
+        std::fs::write(
+            ext.join("ParentConfigurations.bin"),
+            support_test_parent_configurations_bin(
+                "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+                "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb",
+                "cccccccc-cccc-cccc-cccc-cccccccccccc",
+            ),
+        )
+        .unwrap();
+        let mut args = Map::new();
+        args.insert(
+            "cwd".to_string(),
+            Value::String(workspace.display().to_string()),
+        );
+        args.insert("dryRun".to_string(), Value::Bool(false));
+        args.insert("ConfigDir".to_string(), Value::String("src".to_string()));
+        args.insert(
+            "Object".to_string(),
+            Value::String("Catalog.Items".to_string()),
+        );
+
+        let result = UnicaApplication::new()
+            .call_tool("unica.meta.remove", &args)
+            .unwrap();
+
+        assert!(!result.ok);
+        assert!(result.summary.contains("support guard"));
+        assert!(result.errors.join("\n").contains("не снят с поддержки"));
+        assert!(object_path.exists());
 
         let _ = std::fs::remove_dir_all(root);
     }

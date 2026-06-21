@@ -11,7 +11,7 @@
         {
           "skill": "cf-edit",
           "status": "ported-to-unica",
-          "notes": "Ported from the cc-1c-skills command surface and adapted to Unica MCP; local parity fixtures retain donor operation behavior.",
+          "notes": "Reviewed donor support-guard drift through 3d36c2026916d2ae8915f0aca0836d55e1ccaabe; Unica adapts it at the MCP application layer for this mutating tool using the shared ParentConfigurations.bin parser and .v8-project.json editingAllowedCheck deny|warn|off policy. Raw donor script wrapper path changes are not applicable because the prompt-visible skill routes through typed unica.*.",
           "upstreamPaths": [
             ".claude/skills/cf-edit/**",
             "docs/cf-guide.md",
@@ -25,7 +25,9 @@
           "contractPaths": [
             "tests/ci/test_unica_skills.py",
             "tests/ci/test_unica_mcp_script_parity.py"
-          ]
+          ],
+          "baselineCommit": "3d36c2026916d2ae8915f0aca0836d55e1ccaabe",
+          "decision": "ported"
         },
         {
           "skill": "cf-info",
@@ -214,7 +216,7 @@
         {
           "skill": "form-add",
           "status": "ported-to-unica",
-          "notes": "Reviewed and ported donor form-add updates through typed unica.form.add with hidden legacy adapter routing; metadata Form.xml/Module.bsl scaffold behavior remains behind the Unica MCP boundary.",
+          "notes": "Reviewed donor support-guard drift through 3d36c2026916d2ae8915f0aca0836d55e1ccaabe; Unica adapts it at the MCP application layer for this mutating tool using the shared ParentConfigurations.bin parser and .v8-project.json editingAllowedCheck deny|warn|off policy. Raw donor script wrapper path changes are not applicable because the prompt-visible skill routes through typed unica.*.",
           "upstreamPaths": [
             ".claude/skills/form-add/**",
             "docs/form-guide.md",
@@ -237,12 +239,12 @@
             "crates/unica-coder/src/infrastructure/legacy_scripts.rs"
           ],
           "decision": "ported",
-          "baselineCommit": "ae8241237753850307d94b10df93e5293e29dc74"
+          "baselineCommit": "3d36c2026916d2ae8915f0aca0836d55e1ccaabe"
         },
         {
           "skill": "form-compile",
           "status": "ported-to-unica",
-          "notes": "Reviewed and ported donor Form DSL expansion through typed unica.form.compile: mobile command bar content, report result fields, choice parameters, availableTypes, extendedTooltip, role access, command interface/navigation, charts/Gantt charts, and DynamicList settings are documented and backed by the hidden donor-compatible adapter.",
+          "notes": "Reviewed donor support-guard drift through 3d36c2026916d2ae8915f0aca0836d55e1ccaabe; Unica adapts it at the MCP application layer for this mutating tool using the shared ParentConfigurations.bin parser and .v8-project.json editingAllowedCheck deny|warn|off policy. Raw donor script wrapper path changes are not applicable because the prompt-visible skill routes through typed unica.*.",
           "upstreamPaths": [
             ".claude/skills/form-compile/**",
             "docs/form-guide.md",
@@ -265,12 +267,12 @@
             "crates/unica-coder/src/infrastructure/legacy_scripts.rs"
           ],
           "decision": "ported",
-          "baselineCommit": "ae8241237753850307d94b10df93e5293e29dc74"
+          "baselineCommit": "3d36c2026916d2ae8915f0aca0836d55e1ccaabe"
         },
         {
           "skill": "form-edit",
           "status": "ported-to-unica",
-          "notes": "Reviewed and ported donor form-edit updates through typed unica.form.edit with hidden legacy adapter routing; edit guidance now routes through unica.form.info/edit/validate and shares the refreshed Form DSL contract.",
+          "notes": "Reviewed donor support-guard drift through 3d36c2026916d2ae8915f0aca0836d55e1ccaabe; Unica adapts it at the MCP application layer for this mutating tool using the shared ParentConfigurations.bin parser and .v8-project.json editingAllowedCheck deny|warn|off policy. Raw donor script wrapper path changes are not applicable because the prompt-visible skill routes through typed unica.*.",
           "upstreamPaths": [
             ".claude/skills/form-edit/**",
             "docs/form-guide.md",
@@ -293,7 +295,7 @@
             "crates/unica-coder/src/infrastructure/legacy_scripts.rs"
           ],
           "decision": "ported",
-          "baselineCommit": "ae8241237753850307d94b10df93e5293e29dc74"
+          "baselineCommit": "3d36c2026916d2ae8915f0aca0836d55e1ccaabe"
         },
         {
           "skill": "form-info",
@@ -350,7 +352,7 @@
         {
           "skill": "form-remove",
           "status": "ported-to-unica",
-          "notes": "Reviewed and ported donor form-remove updates through typed unica.form.remove with hidden legacy adapter routing.",
+          "notes": "Reviewed and ported donor form-remove updates through typed unica.form.remove with hidden legacy adapter routing. Unica now also applies the shared support guard policy to form removal because it mutates the owning metadata object, even though the current donor drift for form-remove is already closed.",
           "upstreamPaths": [
             ".claude/skills/form-remove/**",
             "docs/form-guide.md",
@@ -438,7 +440,7 @@
         {
           "skill": "interface-edit",
           "status": "ported-to-unica",
-          "notes": "Ported from the cc-1c-skills command surface and adapted to Unica MCP; local parity fixtures retain donor operation behavior.",
+          "notes": "Reviewed donor support-guard drift through 3d36c2026916d2ae8915f0aca0836d55e1ccaabe; Unica adapts it at the MCP application layer for this mutating tool using the shared ParentConfigurations.bin parser and .v8-project.json editingAllowedCheck deny|warn|off policy. Raw donor script wrapper path changes are not applicable because the prompt-visible skill routes through typed unica.*.",
           "upstreamPaths": [
             ".claude/skills/interface-edit/**",
             "docs/subsystem-guide.md",
@@ -451,7 +453,9 @@
           "contractPaths": [
             "tests/ci/test_unica_skills.py",
             "tests/ci/test_unica_mcp_script_parity.py"
-          ]
+          ],
+          "baselineCommit": "3d36c2026916d2ae8915f0aca0836d55e1ccaabe",
+          "decision": "ported"
         },
         {
           "skill": "interface-validate",
@@ -474,7 +478,7 @@
         {
           "skill": "meta-compile",
           "status": "ported-to-unica",
-          "notes": "Reviewed donor metadata DSL drift through ae8241237753850307d94b10df93e5293e29dc74 and ported ChoiceHistoryOnInput through unica.meta.compile; newer support-guard drift remains open.",
+          "notes": "Reviewed donor support-guard drift through 3d36c2026916d2ae8915f0aca0836d55e1ccaabe; Unica adapts it at the MCP application layer for this mutating tool using the shared ParentConfigurations.bin parser and .v8-project.json editingAllowedCheck deny|warn|off policy. Raw donor script wrapper path changes are not applicable because the prompt-visible skill routes through typed unica.*.",
           "upstreamPaths": [
             ".claude/skills/meta-compile/**",
             "docs/meta-guide.md",
@@ -491,12 +495,12 @@
             "crates/unica-coder/src/infrastructure/native_operations/meta.rs"
           ],
           "decision": "ported",
-          "baselineCommit": "ae8241237753850307d94b10df93e5293e29dc74"
+          "baselineCommit": "3d36c2026916d2ae8915f0aca0836d55e1ccaabe"
         },
         {
           "skill": "meta-edit",
           "status": "ported-to-unica",
-          "notes": "Ported from the cc-1c-skills command surface and adapted to Unica MCP; local parity fixtures retain donor operation behavior.",
+          "notes": "Reviewed donor support-guard drift through 3d36c2026916d2ae8915f0aca0836d55e1ccaabe; Unica adapts it at the MCP application layer for this mutating tool using the shared ParentConfigurations.bin parser and .v8-project.json editingAllowedCheck deny|warn|off policy. Raw donor script wrapper path changes are not applicable because the prompt-visible skill routes through typed unica.*.",
           "upstreamPaths": [
             ".claude/skills/meta-edit/**",
             "docs/meta-guide.md",
@@ -510,7 +514,9 @@
           "contractPaths": [
             "tests/ci/test_unica_skills.py",
             "tests/ci/test_unica_mcp_script_parity.py"
-          ]
+          ],
+          "baselineCommit": "3d36c2026916d2ae8915f0aca0836d55e1ccaabe",
+          "decision": "ported"
         },
         {
           "skill": "meta-info",
@@ -539,7 +545,7 @@
         {
           "skill": "meta-remove",
           "status": "ported-to-unica",
-          "notes": "Ported from the cc-1c-skills command surface and adapted to Unica MCP; local parity fixtures retain donor operation behavior.",
+          "notes": "Reviewed donor support-guard drift through 3d36c2026916d2ae8915f0aca0836d55e1ccaabe; Unica adapts it at the MCP application layer for this mutating tool using the shared ParentConfigurations.bin parser and .v8-project.json editingAllowedCheck deny|warn|off policy. Raw donor script wrapper path changes are not applicable because the prompt-visible skill routes through typed unica.*.",
           "upstreamPaths": [
             ".claude/skills/meta-remove/**",
             "docs/meta-guide.md",
@@ -553,7 +559,9 @@
           "contractPaths": [
             "tests/ci/test_unica_skills.py",
             "tests/ci/test_unica_mcp_script_parity.py"
-          ]
+          ],
+          "baselineCommit": "3d36c2026916d2ae8915f0aca0836d55e1ccaabe",
+          "decision": "ported"
         },
         {
           "skill": "meta-validate",
@@ -577,7 +585,7 @@
         {
           "skill": "mxl-compile",
           "status": "ported-to-unica",
-          "notes": "Ported from the cc-1c-skills command surface and adapted to Unica MCP; local parity fixtures retain donor operation behavior.",
+          "notes": "Reviewed donor support-guard drift through 3d36c2026916d2ae8915f0aca0836d55e1ccaabe; Unica adapts it at the MCP application layer for this mutating tool using the shared ParentConfigurations.bin parser and .v8-project.json editingAllowedCheck deny|warn|off policy. Raw donor script wrapper path changes are not applicable because the prompt-visible skill routes through typed unica.*.",
           "upstreamPaths": [
             ".claude/skills/mxl-compile/**",
             "docs/mxl-guide.md",
@@ -591,7 +599,9 @@
           "contractPaths": [
             "tests/ci/test_unica_skills.py",
             "tests/ci/test_unica_mcp_script_parity.py"
-          ]
+          ],
+          "baselineCommit": "3d36c2026916d2ae8915f0aca0836d55e1ccaabe",
+          "decision": "ported"
         },
         {
           "skill": "mxl-decompile",
@@ -658,7 +668,7 @@
         {
           "skill": "role-compile",
           "status": "ported-to-unica",
-          "notes": "Ported from the cc-1c-skills command surface and adapted to Unica MCP; local parity fixtures retain donor operation behavior.",
+          "notes": "Reviewed donor support-guard drift through 3d36c2026916d2ae8915f0aca0836d55e1ccaabe; Unica adapts it at the MCP application layer for this mutating tool using the shared ParentConfigurations.bin parser and .v8-project.json editingAllowedCheck deny|warn|off policy. Raw donor script wrapper path changes are not applicable because the prompt-visible skill routes through typed unica.*.",
           "upstreamPaths": [
             ".claude/skills/role-compile/**",
             "docs/role-guide.md",
@@ -672,7 +682,9 @@
           "contractPaths": [
             "tests/ci/test_unica_skills.py",
             "tests/ci/test_unica_mcp_script_parity.py"
-          ]
+          ],
+          "baselineCommit": "3d36c2026916d2ae8915f0aca0836d55e1ccaabe",
+          "decision": "ported"
         },
         {
           "skill": "role-info",
@@ -720,7 +732,7 @@
         {
           "skill": "skd-compile",
           "status": "ported-to-unica",
-          "notes": "Reviewed and ported donor SKD DSL expansion through typed unica.skd.compile: TypeSet, richer roles, value lists, availableValues, orderExpression, dataSetLinks, templates, and updated DCS references are adapted behind Unica MCP.",
+          "notes": "Reviewed donor support-guard drift through 3d36c2026916d2ae8915f0aca0836d55e1ccaabe; Unica adapts it at the MCP application layer for this mutating tool using the shared ParentConfigurations.bin parser and .v8-project.json editingAllowedCheck deny|warn|off policy. Raw donor script wrapper path changes are not applicable because the prompt-visible skill routes through typed unica.*.",
           "upstreamPaths": [
             ".claude/skills/skd-compile/**",
             "docs/skd-guide.md",
@@ -742,12 +754,12 @@
             "crates/unica-coder/src/infrastructure/legacy_scripts.rs"
           ],
           "decision": "ported",
-          "baselineCommit": "ae8241237753850307d94b10df93e5293e29dc74"
+          "baselineCommit": "3d36c2026916d2ae8915f0aca0836d55e1ccaabe"
         },
         {
           "skill": "skd-edit",
           "status": "ported-to-unica",
-          "notes": "Reviewed and ported donor SKD edit expansion through typed unica.skd.edit: hidden/always/value-list parameters, availableValue replacement, multi-value defaults, query round-trip guidance, and @once patch-query semantics.",
+          "notes": "Reviewed donor support-guard drift through 3d36c2026916d2ae8915f0aca0836d55e1ccaabe; Unica adapts it at the MCP application layer for this mutating tool using the shared ParentConfigurations.bin parser and .v8-project.json editingAllowedCheck deny|warn|off policy. Raw donor script wrapper path changes are not applicable because the prompt-visible skill routes through typed unica.*.",
           "upstreamPaths": [
             ".claude/skills/skd-edit/**",
             "docs/skd-guide.md",
@@ -769,7 +781,7 @@
             "crates/unica-coder/src/infrastructure/legacy_scripts.rs"
           ],
           "decision": "ported",
-          "baselineCommit": "ae8241237753850307d94b10df93e5293e29dc74"
+          "baselineCommit": "3d36c2026916d2ae8915f0aca0836d55e1ccaabe"
         },
         {
           "skill": "skd-info",
@@ -830,7 +842,7 @@
         {
           "skill": "subsystem-compile",
           "status": "ported-to-unica",
-          "notes": "Ported from the cc-1c-skills command surface and adapted to Unica MCP; local parity fixtures retain donor operation behavior.",
+          "notes": "Reviewed donor support-guard drift through 3d36c2026916d2ae8915f0aca0836d55e1ccaabe; Unica adapts it at the MCP application layer for this mutating tool using the shared ParentConfigurations.bin parser and .v8-project.json editingAllowedCheck deny|warn|off policy. Raw donor script wrapper path changes are not applicable because the prompt-visible skill routes through typed unica.*.",
           "upstreamPaths": [
             ".claude/skills/subsystem-compile/**",
             "docs/subsystem-guide.md",
@@ -843,12 +855,14 @@
           "contractPaths": [
             "tests/ci/test_unica_skills.py",
             "tests/ci/test_unica_mcp_script_parity.py"
-          ]
+          ],
+          "baselineCommit": "3d36c2026916d2ae8915f0aca0836d55e1ccaabe",
+          "decision": "ported"
         },
         {
           "skill": "subsystem-edit",
           "status": "ported-to-unica",
-          "notes": "Ported from the cc-1c-skills command surface and adapted to Unica MCP; local parity fixtures retain donor operation behavior.",
+          "notes": "Reviewed donor support-guard drift through 3d36c2026916d2ae8915f0aca0836d55e1ccaabe; Unica adapts it at the MCP application layer for this mutating tool using the shared ParentConfigurations.bin parser and .v8-project.json editingAllowedCheck deny|warn|off policy. Raw donor script wrapper path changes are not applicable because the prompt-visible skill routes through typed unica.*.",
           "upstreamPaths": [
             ".claude/skills/subsystem-edit/**",
             "docs/subsystem-guide.md",
@@ -861,7 +875,9 @@
           "contractPaths": [
             "tests/ci/test_unica_skills.py",
             "tests/ci/test_unica_mcp_script_parity.py"
-          ]
+          ],
+          "baselineCommit": "3d36c2026916d2ae8915f0aca0836d55e1ccaabe",
+          "decision": "ported"
         },
         {
           "skill": "subsystem-info",
@@ -907,7 +923,7 @@
         {
           "skill": "template-add",
           "status": "ported-to-unica",
-          "notes": "Ported from the cc-1c-skills command surface and adapted to Unica MCP; local parity fixtures retain donor operation behavior.",
+          "notes": "Reviewed donor support-guard drift through 3d36c2026916d2ae8915f0aca0836d55e1ccaabe; Unica adapts it at the MCP application layer for this mutating tool using the shared ParentConfigurations.bin parser and .v8-project.json editingAllowedCheck deny|warn|off policy. Raw donor script wrapper path changes are not applicable because the prompt-visible skill routes through typed unica.*.",
           "upstreamPaths": [
             ".claude/skills/template-add/**",
             "docs/meta-guide.md",
@@ -920,12 +936,14 @@
           "contractPaths": [
             "tests/ci/test_unica_skills.py",
             "tests/ci/test_unica_mcp_script_parity.py"
-          ]
+          ],
+          "baselineCommit": "3d36c2026916d2ae8915f0aca0836d55e1ccaabe",
+          "decision": "ported"
         },
         {
           "skill": "template-remove",
           "status": "ported-to-unica",
-          "notes": "Ported from the cc-1c-skills command surface and adapted to Unica MCP; local parity fixtures retain donor operation behavior.",
+          "notes": "Reviewed current donor drift through 3d36c2026916d2ae8915f0aca0836d55e1ccaabe; donor changes are raw script wrapper/version metadata and do not apply to Unica MCP routing. Unica still applies the shared support guard policy to template removal because it mutates the owning metadata object.",
           "upstreamPaths": [
             ".claude/skills/template-remove/**",
             "docs/meta-guide.md",
@@ -938,7 +956,10 @@
           "contractPaths": [
             "tests/ci/test_unica_skills.py",
             "tests/ci/test_unica_mcp_script_parity.py"
-          ]
+          ],
+          "baselineCommit": "3d36c2026916d2ae8915f0aca0836d55e1ccaabe",
+          "decision": "ignored-with-reason",
+          "decisionReason": "Donor change only updates raw script wrapper/version metadata; Unica prompt-visible skill routes through typed unica.template.remove instead of donor scripts."
         },
         {
           "skill": "web-test",

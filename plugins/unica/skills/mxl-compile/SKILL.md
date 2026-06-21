@@ -17,6 +17,7 @@ allowed-tools:
 - Do not call internal MCP/CLI adapters directly. They are hidden behind `unica` and synchronized by the orchestrator.
 - Execution path: call MCP `unica` tool `unica.mxl.compile`; skill-local operation scripts are not part of the workflow.
 - For mutating operations, pass `dryRun: false` only when the user explicitly requested the change; otherwise keep the default dry run.
+- Vendor support guard runs inside `unica`; if it blocks a locked/read-only supported object, prefer CFE/release-support or an explicit support-state change plan instead of editing raw support metadata.
 
 Принимает компактное JSON-определение макета и генерирует корректный Template.xml для табличного документа 1С. Ассистент описывает *что* нужно (области, параметры, стили), MCP-инструмент обеспечивает *корректность* XML (палитры, индексы, объединения, namespace).
 

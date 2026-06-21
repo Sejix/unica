@@ -17,6 +17,7 @@ allowed-tools:
 - Do not call internal MCP/CLI adapters directly. They are hidden behind `unica` and synchronized by the orchestrator.
 - Execution path: call MCP `unica` tool `unica.meta.remove`; skill-local operation scripts are not part of the workflow.
 - For mutating operations, pass `dryRun: false` only when the user explicitly requested the change; otherwise keep the default dry run.
+- Vendor support guard runs inside `unica`; if it blocks a locked/read-only supported object, prefer CFE/release-support or an explicit support-state change plan instead of editing raw support metadata.
 
 Безопасно удаляет объект из XML-выгрузки конфигурации. Перед удалением проверяет ссылки на объект в реквизитах, коде и других метаданных. Если ссылки найдены — удаление блокируется.
 

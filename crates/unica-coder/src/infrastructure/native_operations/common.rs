@@ -1546,6 +1546,69 @@ pub(crate) fn support_status_for_path(target_path: &Path) -> String {
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum SupportGuardRequirement {
+    Editable,
+    Removed,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct SupportGuardViolation {
+    pub code: &'static str,
+    pub reason: String,
+    pub target_path: PathBuf,
+    pub config_dir: PathBuf,
+}
+
+pub(crate) fn support_guard_violation(
+    target_path: &Path,
+    requirement: SupportGuardRequirement,
+) -> Option<SupportGuardViolation> {
+    let target_path = target_path
+        .canonicalize()
+        .unwrap_or_else(|_| target_path.to_path_buf());
+    let config_dir = find_support_config_dir(&target_path)?;
+    let bin_path = config_dir.join("Ext").join("ParentConfigurations.bin");
+    let state = read_support_state(&bin_path)?;
+    if state.removed {
+        return None;
+    }
+    if !state.global_editing_enabled {
+        return Some(SupportGuardViolation {
+            code: "capability-off",
+            reason: "возможность изменения конфигурации выключена (вся конфигурация read-only)"
+                .to_string(),
+            target_path,
+            config_dir,
+        });
+    }
+
+    let object_uuid = support_object_uuid_for_path(&target_path)
+        .or_else(|| support_root_uuid(&config_dir.join("Configuration.xml")));
+    let object_rule = object_uuid
+        .as_deref()
+        .and_then(|uuid| state.object_rule(uuid));
+    match requirement {
+        SupportGuardRequirement::Removed if object_rule.is_some_and(|rule| rule != 2) => {
+            Some(SupportGuardViolation {
+                code: "not-removed",
+                reason: "объект не снят с поддержки — удаление сломает обновления".to_string(),
+                target_path,
+                config_dir,
+            })
+        }
+        SupportGuardRequirement::Editable if object_rule == Some(0) => {
+            Some(SupportGuardViolation {
+                code: "locked",
+                reason: "объект на замке — редактирование сломает обновления".to_string(),
+                target_path,
+                config_dir,
+            })
+        }
+        _ => None,
+    }
+}
+
 #[derive(Debug, Clone)]
 pub(crate) struct SupportState {
     global_editing_enabled: bool,
