@@ -2,7 +2,7 @@ use crate::domain::workspace::WorkspaceContext;
 use crate::infrastructure::AdapterOutcome;
 use serde_json::{Map, Value};
 
-use super::{cf, cfe, form, interface, meta, mxl, role, skd, subsystem, template};
+use super::{cf, cfe, form, help, interface, meta, mxl, role, skd, subsystem, template};
 
 pub(crate) fn invoke_read(
     operation: &str,
@@ -31,6 +31,10 @@ pub(crate) fn invoke_mutation(
     cf::invoke_mutation(operation, tool_name, args, context)
         .or_else(|| cfe::invoke_mutation(operation, tool_name, args, context))
         .or_else(|| meta::invoke_mutation(operation, tool_name, args, context))
+        .or_else(|| match operation {
+            "help-add" => Some(help::add_help(args, context)),
+            _ => None,
+        })
         .or_else(|| form::invoke_mutation(operation, tool_name, args, context))
         .or_else(|| interface::invoke_mutation(operation, tool_name, args, context))
         .or_else(|| subsystem::invoke_mutation(operation, tool_name, args, context))

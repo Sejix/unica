@@ -27,6 +27,7 @@ IN_SCOPE_TOOLS = {
     "form-info": "unica.form.info",
     "form-remove": "unica.form.remove",
     "form-validate": "unica.form.validate",
+    "help-add": "unica.help.add",
     "interface-edit": "unica.interface.edit",
     "interface-validate": "unica.interface.validate",
     "subsystem-compile": "unica.subsystem.compile",
@@ -50,7 +51,6 @@ IN_SCOPE_TOOLS = {
 
 OUT_OF_SCOPE = [
     "web-test",
-    "help-add",
     "img-grid",
 ]
 
@@ -288,6 +288,7 @@ TASK_EXAMPLE_ARGUMENT_KEYS = {
     "form-info": ["FormPath"],
     "form-remove": ["ObjectName", "FormName", "SrcDir"],
     "form-validate": ["FormPath"],
+    "help-add": ["ObjectName", "Lang", "SrcDir"],
     "interface-edit": ["CIPath", "Operation", "Value"],
     "interface-validate": ["CIPath"],
     "subsystem-compile": ["Value", "OutputDir"],

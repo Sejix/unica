@@ -205,9 +205,10 @@ class SkillProvenanceTests(unittest.TestCase):
             "3d36c2026916d2ae8915f0aca0836d55e1ccaabe",
         )
         self.assertEqual(upstreams["cc-1c-skills"]["commitsSinceBaseline"], 564)
-        self.assertEqual(upstreams["cc-1c-skills"]["changedWatchedPathCount"], 3)
-        self.assertEqual(upstreams["cc-1c-skills"]["affectedEntries"], ["help-add"])
+        self.assertEqual(upstreams["cc-1c-skills"]["changedWatchedPathCount"], 0)
+        self.assertEqual(upstreams["cc-1c-skills"]["affectedEntries"], [])
         self.assertNotIn("web-test", upstreams["cc-1c-skills"]["affectedEntries"])
+        self.assertNotIn("help-add", upstreams["cc-1c-skills"]["affectedEntries"])
         for skill in (
             "cf-edit",
             "cf-info",
@@ -275,6 +276,7 @@ class SkillProvenanceTests(unittest.TestCase):
             "img-grid",
             "interface-validate",
             "meta-validate",
+            "help-add",
             "mxl-decompile",
             "mxl-validate",
             "role-validate",
@@ -329,6 +331,7 @@ class SkillProvenanceTests(unittest.TestCase):
             "interface-edit",
             "template-add",
             "template-remove",
+            "help-add",
         ):
             decision = next(
                 item
@@ -382,6 +385,7 @@ class SkillProvenanceTests(unittest.TestCase):
                 "img-grid",
                 "interface-validate",
                 "meta-validate",
+                "help-add",
                 "mxl-decompile",
                 "mxl-validate",
                 "role-validate",
@@ -393,6 +397,9 @@ class SkillProvenanceTests(unittest.TestCase):
                 )
                 if skill == "meta-validate":
                     self.assertIn("batch", decision["evidence"])
+                elif skill == "help-add":
+                    self.assertIn("unica.help.add", decision["evidence"])
+                    self.assertIn("support guard", decision["evidence"])
                 elif decision["decision"] == "ported":
                     self.assertIn("support-guard", decision["evidence"])
             if skill in (

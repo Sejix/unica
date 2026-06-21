@@ -40,6 +40,7 @@ const NATIVE_XML_DSL_ARGS: &[&str] = &[
     "JsonPath",
     "KeepFiles",
     "Kind",
+    "Lang",
     "Language",
     "Limit",
     "IsFunction",
@@ -113,6 +114,7 @@ const NATIVE_XML_DSL_ARGS: &[&str] = &[
     "jsonPath",
     "keepFiles",
     "kind",
+    "lang",
     "language",
     "limit",
     "isFunction",
@@ -586,6 +588,7 @@ fn write_path_args(tool: ToolSpec) -> &'static [&'static str] {
             "form-compile" => &["OutputPath", "outputPath"],
             "form-edit" => &["FormPath", "formPath"],
             "form-remove" => &["SrcDir", "srcDir"],
+            "help-add" => &["SrcDir", "srcDir"],
             "interface-edit" => &["CIPath", "ciPath"],
             "subsystem-compile" => &["OutputDir", "outputDir", "Parent", "parent"],
             "subsystem-edit" => &["SubsystemPath", "subsystemPath"],
@@ -615,17 +618,16 @@ fn is_native_xml_tool(tool: ToolSpec) -> bool {
         || matches!(
             tool.handler,
             ToolHandler::LegacyScript {
-                skill:
-                    "form-add"
-                        | "form-compile"
-                        | "form-edit"
-                        | "form-info"
-                        | "form-remove"
-                        | "form-validate"
-                        | "skd-compile"
-                        | "skd-edit"
-                        | "skd-info"
-                        | "skd-validate",
+                skill: "form-add"
+                    | "form-compile"
+                    | "form-edit"
+                    | "form-info"
+                    | "form-remove"
+                    | "form-validate"
+                    | "skd-compile"
+                    | "skd-edit"
+                    | "skd-info"
+                    | "skd-validate",
                 ..
             }
         )
@@ -724,6 +726,7 @@ fn required_args(tool: &ToolSpec) -> Vec<&'static str> {
             "cfe-diff" => vec!["ExtensionPath", "ConfigPath"],
             "cfe-validate" => vec!["ExtensionPath"],
             "meta-info" | "meta-validate" | "meta-edit" => vec!["ObjectPath"],
+            "help-add" => vec!["ObjectName"],
             "form-info" | "form-validate" | "form-edit" => vec!["FormPath"],
             "interface-validate" | "interface-edit" => vec!["CIPath"],
             "subsystem-info" | "subsystem-validate" | "subsystem-edit" => vec!["SubsystemPath"],
@@ -1127,6 +1130,31 @@ mod tests {
     }
 
     #[test]
+    fn help_add_contract_exposes_typed_arguments_without_raw_args() {
+        let help_add = tools()
+            .into_iter()
+            .find(|tool| tool.name == "unica.help.add")
+            .expect("unica.help.add must be registered");
+
+        let schema = input_schema_for_tool(&help_add);
+        assert_eq!(schema["additionalProperties"], false);
+        assert!(schema["properties"].get("ObjectName").is_some());
+        assert!(schema["properties"].get("Lang").is_some());
+        assert!(schema["properties"].get("SrcDir").is_some());
+        assert!(schema["properties"].get("args").is_none());
+        assert_eq!(schema["required"], json!(["ObjectName"]));
+
+        let mut args = Map::new();
+        args.insert("args".to_string(), json!(["scripts/add-help.py"]));
+        let error = validate_tool_arguments(help_add, &args, false).unwrap_err();
+        assert!(error.contains("does not accept argument `args`"));
+
+        let args = Map::new();
+        let error = validate_tool_arguments(help_add, &args, false).unwrap_err();
+        assert!(error.contains("requires `ObjectName`"));
+    }
+
+    #[test]
     fn skd_info_contract_exposes_raw_query_export() {
         let skd_info = tools()
             .into_iter()
@@ -1139,7 +1167,10 @@ mod tests {
         assert_eq!(schema["required"], json!(["TemplatePath"]));
 
         let mut args = Map::new();
-        args.insert("TemplatePath".to_string(), json!("Reports/Sales/Templates/Main"));
+        args.insert(
+            "TemplatePath".to_string(),
+            json!("Reports/Sales/Templates/Main"),
+        );
         args.insert("Mode".to_string(), json!("query"));
         args.insert("Name".to_string(), json!("Sales"));
         args.insert("Raw".to_string(), json!(true));

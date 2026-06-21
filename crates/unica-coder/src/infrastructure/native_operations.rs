@@ -7,6 +7,7 @@ pub(crate) mod cf;
 pub(crate) mod cfe;
 pub(crate) mod common;
 pub(crate) mod form;
+pub(crate) mod help;
 pub(crate) mod interface;
 pub(crate) mod meta;
 pub(crate) mod mxl;

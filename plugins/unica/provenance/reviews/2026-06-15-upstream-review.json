@@ -4,9 +4,9 @@
   "generatedAt": "2026-06-15",
   "purpose": "Manual review of donor changes since the last local Unica skill adaptation. This is not a checksum attestation.",
   "summary": [
-    "cc-1c-skills current remote head is 3d36c2026916d2ae8915f0aca0836d55e1ccaabe; current open drift after the wrapper/meta-validate batch is 564 commits at the source baseline, 3 watched changed paths, and 1 affected packaged Unica skill.",
-    "web-test, SKD DSL, form DSL, metadata presentation/ChoiceHistoryOnInput, read-only support-state reporting, mutating support guard, and meta-validate batch mode are now reviewed and ported through Unica boundaries up to 3d36c2026916d2ae8915f0aca0836d55e1ccaabe where applicable.",
-    "The remaining Shirokov donor layer is not fully adapted: help-add is still a non-MCP mutation flow with donor support-guard drift; support-edit, DT dump/load skills, and 1cv8 path resolver fixes remain separate non-packaged or future capability decisions.",
+    "cc-1c-skills current remote head is 3d36c2026916d2ae8915f0aca0836d55e1ccaabe; the source baseline still spans 564 commits, but per-entry reviewed baselines now leave 0 watched changed paths and 0 affected packaged Unica skills.",
+    "web-test, SKD DSL, form DSL, metadata presentation/ChoiceHistoryOnInput, read-only support-state reporting, mutating support guard, meta-validate batch mode, and help-add are now reviewed and ported through Unica boundaries up to 3d36c2026916d2ae8915f0aca0836d55e1ccaabe where applicable.",
+    "No current packaged Shirokov skill drift remains open. support-edit, DT dump/load skills, and 1cv8 path resolver fixes remain separate non-packaged or future capability decisions.",
     "ai-rules-1c has guidance drift since the local v17/v18 adaptation window: 23 commits, 36 watched changed paths, 17 affected Unica skills.",
     "v8-runner-rust runtime-contract drift from locked v0.5.0 to upstream v0.5.1 was reviewed and applied; the current tool lock baseline is v0.5.1."
   ],
@@ -47,18 +47,15 @@
       "priority": 2,
       "upstream": "cc-1c-skills",
       "skills": [
-        "help-add",
         "support-edit"
       ],
-      "notes": "MCP-level support guard for mutators is ported. Remaining work is explicit support-edit capability/flow plus help-add, which still bypasses typed Unica MCP mutation handling."
+      "notes": "MCP-level support guard for mutators and help-add is ported. Remaining work is an explicit support-edit capability/flow, which is not a packaged skill today."
     },
     {
       "id": "remaining-guidance-and-command-surface",
       "priority": 4,
-      "skills": [
-        "help-add"
-      ],
-      "notes": "All current packaged wrapper-only Shirokov diffs except help-add have reviewed decisions; help-add remains open because it is a real non-MCP mutating script flow, not merely guidance."
+      "skills": [],
+      "notes": "All current packaged Shirokov wrapper/guidance diffs have reviewed decisions; no packaged skill remains open in this queue."
     }
   ],
   "upstreams": [
@@ -68,12 +65,10 @@
       "baselineReason": "Donor head at or before local adaptation commit 795505f2243cf3c93a95918467f99135af758e1b (2026-05-04T07:38:11+07:00).",
       "targetCommit": "3d36c2026916d2ae8915f0aca0836d55e1ccaabe",
       "commitsSinceBaseline": 564,
-      "changedWatchedPathCount": 3,
-      "reviewStatus": "needs-adaptation-decision",
-      "finding": "Only help-add remains as current packaged Shirokov drift after porting meta-validate batch mode and closing wrapper-only CLAUDE_SKILL_DIR guidance as not applicable to typed Unica MCP routing. help-add still needs a typed Unica mutation path or an explicit script-level support-guard decision.",
-      "affectedEntries": [
-        "help-add"
-      ],
+      "changedWatchedPathCount": 0,
+      "reviewStatus": "reviewed",
+      "finding": "No current packaged Shirokov donor drift remains after porting help-add as typed unica.help.add and closing wrapper-only guidance diffs with reviewed decisions.",
+      "affectedEntries": [],
       "reviewedEntries": [
         "web-test",
         "skd-compile",
@@ -116,7 +111,8 @@
         "mxl-decompile",
         "mxl-validate",
         "role-validate",
-        "subsystem-validate"
+        "subsystem-validate",
+        "help-add"
       ],
       "entryDecisions": [
         {
@@ -412,6 +408,13 @@
           "baselineCommit": "3d36c2026916d2ae8915f0aca0836d55e1ccaabe",
           "result": "ignored-with-reason",
           "evidence": "Reviewed current donor drift; changed surface is raw script invocation guidance or support-state documentation already represented by Unica provenance/support-state batches, while the local skill routes through typed Unica MCP or packaged local script semantics."
+        },
+        {
+          "skill": "help-add",
+          "decision": "ported",
+          "baselineCommit": "3d36c2026916d2ae8915f0aca0836d55e1ccaabe",
+          "result": "ported",
+          "evidence": "Local help-add now routes through typed unica.help.add. The native writer creates Ext/Help.xml and Help/<Lang>.html, updates IncludeHelpInContents in form metadata, rejects path-unsafe arguments, invalidates form/metadata caches, and shares the Unica MCP support guard instead of exposing prompt-visible scripts."
         }
       ]
     },
@@ -580,6 +583,16 @@
       "decision": "ported-and-ignored-with-reasons",
       "baselineCommit": "3d36c2026916d2ae8915f0aca0836d55e1ccaabe",
       "notes": "Ported the only functional remaining validation drift, meta-validate pipe-separated batch mode, through native unica.meta.validate. Reviewed remaining CLAUDE_SKILL_DIR wrapper guidance diffs as not applicable to Unica MCP/package routing."
+    },
+    {
+      "id": "cc-help-add-mcp-support-guard",
+      "upstream": "cc-1c-skills",
+      "skills": [
+        "help-add"
+      ],
+      "decision": "ported",
+      "baselineCommit": "3d36c2026916d2ae8915f0aca0836d55e1ccaabe",
+      "notes": "Ported help-add from a packaged local script flow to typed native unica.help.add. Support guard is applied at the Unica MCP boundary, packaged skill-local scripts were removed, and the donor Python script is retained only as test parity evidence."
     }
   ],
   "lastRefreshedAt": "2026-06-22"

@@ -428,18 +428,26 @@
         },
         {
           "skill": "help-add",
-          "status": "still-local-script",
-          "notes": "Adapted from the cc-1c-skills command surface for the packaged Unica skill.",
+          "status": "ported-to-unica",
+          "notes": "Reviewed donor help-add support-guard drift through current Shirokov head; Unica adapts it as typed native MCP tool unica.help.add with the shared ParentConfigurations.bin support guard, path-safe arguments, cache invalidation, and no prompt-visible script execution path.",
           "upstreamPaths": [
             ".claude/skills/help-add/**",
             "docs/1c-help-spec.md"
           ],
           "localPaths": [
-            "plugins/unica/skills/help-add"
+            "plugins/unica/skills/help-add",
+            "tests/fixtures/unica_mcp_script_parity/reference_skills/help-add"
           ],
           "contractPaths": [
-            "tests/ci/test_unica_skills.py"
-          ]
+            "tests/ci/test_unica_skills.py",
+            "tests/ci/test_unica_mcp_script_parity.py",
+            "crates/unica-coder/src/application/mod.rs",
+            "crates/unica-coder/src/application/tool_contracts.rs",
+            "crates/unica-coder/src/infrastructure/native_operations/help.rs",
+            "crates/unica-coder/src/infrastructure/native_operations/registry.rs"
+          ],
+          "baselineCommit": "3d36c2026916d2ae8915f0aca0836d55e1ccaabe",
+          "decision": "ported"
         },
         {
           "skill": "img-grid",

@@ -15,6 +15,14 @@ allowed-tools:
 
 Добавляет встроенную справку к объекту: файл метаданных `Help.xml`, HTML-страницу и при необходимости обновляет метаданные форм.
 
+## MCP routing
+
+- Preferred path: use MCP `unica` tool `unica.help.add`; `unica` owns metadata/form writes and refreshes related workspace caches after mutations.
+- Do not call internal MCP/CLI adapters directly. They are hidden behind `unica` and synchronized by the orchestrator.
+- Execution path: call MCP `unica` tool `unica.help.add`; skill-local operation scripts are not part of the workflow.
+- For mutating operations, pass `dryRun: false` only when the user explicitly requested the change; otherwise keep the default dry run.
+- Vendor support guard runs inside `unica`; if it blocks a locked/read-only supported object, prefer CFE/release-support or an explicit support-state change plan instead of editing raw support metadata.
+
 ## Usage
 
 ```
@@ -27,13 +35,26 @@ allowed-tools:
 | Lang       | нет          | `ru`         | Код языка справки                   |
 | SrcDir     | нет          | `src`        | Каталог исходников                  |
 
-## Команда
+## MCP вызов
 
-```powershell
-powershell.exe -NoProfile -File scripts/add-help.ps1 -ObjectName "<ObjectName>" [-Lang "<Lang>"] [-SrcDir "<SrcDir>"]
+```json
+{
+  "jsonrpc": "2.0",
+  "method": "tools/call",
+  "params": {
+    "name": "unica.help.add",
+    "arguments": {
+      "cwd": "<workspace>",
+      "ObjectName": "Catalogs/МойСправочник",
+      "Lang": "ru",
+      "SrcDir": "src",
+      "dryRun": false
+    }
+  }
+}
 ```
 
-## Что делает скрипт
+## Что делает Unica
 
 - Создаёт `Ext/Help.xml` и `Ext/Help/ru.html` — шаблон справки
 - Если у объекта есть формы — добавляет `<IncludeHelpInContents>` в метаданные форм (если отсутствует)

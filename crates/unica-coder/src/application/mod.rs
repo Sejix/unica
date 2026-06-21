@@ -496,6 +496,7 @@ fn support_guard_target(
         "form-remove" => {
             support_guard_object_name_target(args, context).map(|path| (path, editable))
         }
+        "help-add" => support_guard_object_name_target(args, context).map(|path| (path, editable)),
         "interface-edit" => support_guard_path_arg(
             args,
             context,
@@ -964,6 +965,16 @@ fn configuration_tools() -> Vec<ToolSpec> {
             },
         },
         ToolSpec {
+            name: "unica.help.add",
+            description: "Add built-in help metadata and page to a 1C object.",
+            mutating: true,
+            cache_access: cache_access_for("help-add", Some(DomainEventKind::FormChanged)),
+            handler: ToolHandler::NativeOperation {
+                operation: "help-add",
+                event: Some(DomainEventKind::FormChanged),
+            },
+        },
+        ToolSpec {
             name: "unica.form.add",
             description: "Add managed form metadata and files.",
             mutating: true,
@@ -1380,6 +1391,7 @@ mod tests {
             "unica.meta.info",
             "unica.meta.remove",
             "unica.meta.validate",
+            "unica.help.add",
             "unica.form.add",
             "unica.form.compile",
             "unica.form.edit",
@@ -1411,6 +1423,7 @@ mod tests {
             if !tool.name.starts_with("unica.cf.")
                 && !tool.name.starts_with("unica.cfe.")
                 && !tool.name.starts_with("unica.meta.")
+                && !tool.name.starts_with("unica.help.")
                 && !tool.name.starts_with("unica.form.")
                 && !tool.name.starts_with("unica.interface.")
                 && !tool.name.starts_with("unica.subsystem.")
@@ -1813,6 +1826,134 @@ mod tests {
         let _ = std::fs::remove_dir_all(root);
     }
 
+    #[test]
+    fn help_add_routes_through_unica_and_creates_help_files() {
+        let root = std::env::temp_dir().join(format!("unica-help-add-{}", std::process::id()));
+        let workspace = root.join("workspace");
+        let src = workspace.join("src");
+        let object_dir = src.join("Catalogs").join("Items");
+        let ext = object_dir.join("Ext");
+        let forms = object_dir.join("Forms");
+        std::fs::create_dir_all(&ext).unwrap();
+        std::fs::create_dir_all(&forms).unwrap();
+        std::fs::write(
+            workspace.join("v8project.yaml"),
+            "format: DESIGNER\nsource-set:\n  - name: main\n    type: CONFIGURATION\n    path: src\n",
+        )
+        .unwrap();
+        std::fs::write(
+            src.join("Configuration.xml"),
+            support_test_configuration_xml("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"),
+        )
+        .unwrap();
+        std::fs::create_dir_all(src.join("Catalogs")).unwrap();
+        std::fs::write(
+            src.join("Catalogs").join("Items.xml"),
+            support_test_catalog_xml("bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb"),
+        )
+        .unwrap();
+        let form_path = forms.join("Main.xml");
+        std::fs::write(&form_path, support_test_form_xml()).unwrap();
+
+        let mut args = Map::new();
+        args.insert(
+            "cwd".to_string(),
+            Value::String(workspace.display().to_string()),
+        );
+        args.insert("dryRun".to_string(), Value::Bool(false));
+        args.insert(
+            "ObjectName".to_string(),
+            Value::String("Catalogs/Items".to_string()),
+        );
+        args.insert("SrcDir".to_string(), Value::String("src".to_string()));
+        args.insert("Lang".to_string(), Value::String("ru".to_string()));
+
+        let result = UnicaApplication::new()
+            .call_tool("unica.help.add", &args)
+            .unwrap();
+
+        assert!(result.ok, "{} {:?}", result.summary, result.errors);
+        let help_xml = ext.join("Help.xml");
+        let help_page = ext.join("Help").join("ru.html");
+        assert!(help_xml.is_file());
+        assert!(help_page.is_file());
+        assert!(std::fs::read_to_string(&help_xml)
+            .unwrap()
+            .contains("<Page>ru</Page>"));
+        assert!(std::fs::read_to_string(&help_page)
+            .unwrap()
+            .contains("<h1>Catalogs/Items</h1>"));
+        assert!(std::fs::read_to_string(&form_path)
+            .unwrap()
+            .contains("<IncludeHelpInContents>false</IncludeHelpInContents>"));
+        assert!(result.cache.events.contains(&"FormChanged".to_string()));
+        assert!(result.cache.invalidated.contains(&"form_graph".to_string()));
+        assert!(result.command.is_none());
+
+        let _ = std::fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn help_add_blocks_locked_vendor_object_before_writing_files() {
+        let root =
+            std::env::temp_dir().join(format!("unica-help-add-guard-{}", std::process::id()));
+        let workspace = root.join("workspace");
+        let src = workspace.join("src");
+        let support_ext = src.join("Ext");
+        let object_dir = src.join("Catalogs").join("Items");
+        let ext = object_dir.join("Ext");
+        std::fs::create_dir_all(&support_ext).unwrap();
+        std::fs::create_dir_all(&ext).unwrap();
+        std::fs::write(
+            workspace.join("v8project.yaml"),
+            "format: DESIGNER\nsource-set:\n  - name: main\n    type: CONFIGURATION\n    path: src\n",
+        )
+        .unwrap();
+        std::fs::write(
+            src.join("Configuration.xml"),
+            support_test_configuration_xml("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"),
+        )
+        .unwrap();
+        std::fs::create_dir_all(src.join("Catalogs")).unwrap();
+        std::fs::write(
+            src.join("Catalogs").join("Items.xml"),
+            support_test_catalog_xml("bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb"),
+        )
+        .unwrap();
+        std::fs::write(
+            support_ext.join("ParentConfigurations.bin"),
+            support_test_parent_configurations_bin(
+                "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+                "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb",
+                "cccccccc-cccc-cccc-cccc-cccccccccccc",
+            ),
+        )
+        .unwrap();
+
+        let mut args = Map::new();
+        args.insert(
+            "cwd".to_string(),
+            Value::String(workspace.display().to_string()),
+        );
+        args.insert("dryRun".to_string(), Value::Bool(false));
+        args.insert(
+            "ObjectName".to_string(),
+            Value::String("Catalogs/Items".to_string()),
+        );
+        args.insert("SrcDir".to_string(), Value::String("src".to_string()));
+
+        let result = UnicaApplication::new()
+            .call_tool("unica.help.add", &args)
+            .unwrap();
+
+        assert!(!result.ok);
+        assert!(result.summary.contains("support guard"));
+        assert!(!ext.join("Help.xml").exists());
+        assert!(result.cache.events.is_empty());
+
+        let _ = std::fs::remove_dir_all(root);
+    }
+
     fn support_test_catalog_definition(name: &str) -> String {
         format!(
             r#"{{
@@ -2068,6 +2209,18 @@ mod tests {
   </Catalog>
 </MetaDataObject>"#
         )
+    }
+
+    fn support_test_form_xml() -> &'static str {
+        r#"<?xml version="1.0" encoding="UTF-8"?>
+<MetaDataObject xmlns="http://v8.1c.ru/8.3/MDClasses" xmlns:v8="http://v8.1c.ru/8.1/data/core" version="2.17">
+  <Form uuid="dddddddd-dddd-dddd-dddd-dddddddddddd">
+    <Properties>
+      <Name>Main</Name>
+      <FormType>Managed</FormType>
+    </Properties>
+  </Form>
+</MetaDataObject>"#
     }
 
     fn support_test_parent_configurations_bin(
