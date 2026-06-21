@@ -10,10 +10,10 @@
 
 ---
 
-## Current Facts Checked On 2026-06-21
+## Pre-Batch Facts Checked On 2026-06-21
 
 - `bsl-analyzer`: locked `v0.2.37`, latest `v0.2.43`, peeled commit `168e4d166e3a508c0c03a72d5b3fd9973b93bba2`.
-- `rlm-tools-bsl` / `rlm-bsl-index`: locked `v1.21.0`, latest `v1.23.0`, peeled commit `3672401335f04bdf43a02aa975e316ac43f92a7c`.
+- `rlm-tools-bsl` / `rlm-bsl-index`: before the RLM batch, locked `v1.21.0`; latest `v1.24.0`, peeled commit `28695871516319a8678f397244cb9ce3b20abfdb`.
 - `v8-runner`: locked `v0.5.1`, latest `v0.5.1`, peeled commit `ad72f64222ab0a7e6dfd391adb437a956c0a2428`.
 - `playwright`: package and lock are `1.61.0`; npm latest is `1.61.0`.
 - `lxml`: source pin is `tests/ci/requirements.txt: lxml==6.1.1`; PyPI latest is `6.1.1`; local interpreter may still have `6.1.0` until requirements are installed.
@@ -56,7 +56,7 @@ git add plugins/unica/provenance/reviews/2026-06-18-product-update-backlog.json 
 git commit -m "Refresh update backlog for June 21"
 ```
 
-## Task 2: RLM v1.23 Product Review And Update
+## Task 2: RLM v1.24 Product Review And Update
 
 **Files:**
 - Modify: `plugins/unica/third-party/tools.lock.json`
@@ -70,18 +70,18 @@ git commit -m "Refresh update backlog for June 21"
 Add an assertion in `tests/ci/test_skill_provenance.py` that `rlm-tools-bsl` and `rlm-bsl-index` are locked to:
 
 ```python
-self.assertEqual(locked_tools[name]["version"], "1.23.0")
-self.assertEqual(locked_tools[name]["sourceTag"], "v1.23.0")
+self.assertEqual(locked_tools[name]["version"], "1.24.0")
+self.assertEqual(locked_tools[name]["sourceTag"], "v1.24.0")
 self.assertEqual(
     locked_tools[name]["sourceCommit"],
-    "3672401335f04bdf43a02aa975e316ac43f92a7c",
+    "28695871516319a8678f397244cb9ce3b20abfdb",
 )
 ```
 
 Run:
 
 ```bash
-python3.12 -m unittest tests.ci.test_skill_provenance.SkillProvenanceTests.test_rlm_tools_are_locked_to_reviewed_1_23_0
+python3.12 -m unittest tests.ci.test_skill_provenance.SkillProvenanceTests.test_rlm_tools_are_locked_to_reviewed_1_24_0_pair
 ```
 
 Expected: FAIL while `tools.lock.json` still points to `1.21.0`.
@@ -91,12 +91,12 @@ Expected: FAIL while `tools.lock.json` still points to `1.21.0`.
 In `plugins/unica/third-party/tools.lock.json`, update both `rlm-tools-bsl` and `rlm-bsl-index`:
 
 ```json
-"version": "1.23.0",
-"sourceTag": "v1.23.0",
-"sourceCommit": "3672401335f04bdf43a02aa975e316ac43f92a7c"
+"version": "1.24.0",
+"sourceTag": "v1.24.0",
+"sourceCommit": "28695871516319a8678f397244cb9ce3b20abfdb"
 ```
 
-- [ ] **Step 3: Extend product contract gate for v1.23 read-only helper changes**
+- [ ] **Step 3: Extend product contract gate for v1.24 read-only helper changes**
 
 In `scripts/ci/check-tool-contracts.py`, keep the existing `index build/update/info` checks and add smoke coverage for helper server behavior only if it is routed through package scripts. Do not expose raw RLM MCP helper names in skills.
 
@@ -120,16 +120,16 @@ Build/update/info a small fixture:
 .build/unica-package-smoke/marketplace/plugins/unica/scripts/run-rlm-bsl-index.sh index update tests/fixtures/unica_mcp_script_parity/meta-remove
 ```
 
-Expected: `builder_version` remains `14`; update does not demand full rebuild solely due to `v1.23.0`.
+Expected: `builder_version` remains `14`; update does not demand full rebuild solely due to `v1.24.0`.
 
 - [ ] **Step 5: Commit**
 
 ```bash
 git add plugins/unica/third-party/tools.lock.json scripts/ci/check-tool-contracts.py tests/ci/test_product_contracts.py tests/ci/test_skill_provenance.py plugins/unica/provenance/reviews/2026-06-18-product-update-backlog.json
-git commit -m "Update RLM tools to 1.23.0"
+git commit -m "Update RLM tools to 1.24.0"
 ```
 
-## Task 3: Decide Whether To Expose RLM v1.23 Capabilities In Unica
+## Task 3: Decide Whether To Expose RLM v1.24 Capabilities In Unica
 
 **Files:**
 - Modify only if contract review confirms a typed boundary is useful:
@@ -142,7 +142,7 @@ git commit -m "Update RLM tools to 1.23.0"
 
 - [ ] **Step 1: Review capability fit**
 
-Evaluate `get_object_profile`, exact role/subscription/functional-option helpers, and efficiency hints from `rlm-tools-bsl v1.23.0`.
+Evaluate `get_object_profile`, exact role/subscription/functional-option helpers, `count_only` helpers, truncation metadata, `overrides_count`, and efficiency hints from `rlm-tools-bsl v1.24.0`.
 
 Decision rules:
 
@@ -185,7 +185,7 @@ old `unica.code.definition`, `outline`, `grep`, and `search` behavior is unchang
 Update product backlog notes:
 
 ```json
-"notes": "v1.23.0 applied as product update only; get_object_profile and helper batching remain internal upstream optimizations until a typed Unica contract is designed."
+"notes": "v1.24.0 applied as product update only; get_object_profile, helper batching, count_only, truncation metadata, and overrides_count remain internal upstream optimizations until a typed Unica contract is designed."
 ```
 
 - [ ] **Step 3: Commit**
@@ -194,7 +194,7 @@ Use one of:
 
 ```bash
 git commit -m "Expose RLM object profile through Unica"
-git commit -m "Record RLM v1.23 capability review"
+git commit -m "Record RLM v1.24 capability review"
 ```
 
 ## Task 4: bsl-analyzer v0.2.43 Follow-Up Review

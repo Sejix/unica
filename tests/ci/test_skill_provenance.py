@@ -107,7 +107,7 @@ class SkillProvenanceTests(unittest.TestCase):
         self.assertEqual(locked_tools["v8-runner"]["sourceTag"], "v0.5.1")
         self.assertEqual(locked_tools["v8-runner"]["sourceCommit"], "ad72f64222ab0a7e6dfd391adb437a956c0a2428")
 
-    def test_rlm_tools_are_locked_to_attested_1_21_0_pair(self) -> None:
+    def test_rlm_tools_are_locked_to_reviewed_1_24_0_pair(self) -> None:
         tool_lock = json.loads(
             (self.repo_root() / "plugins" / "unica" / "third-party" / "tools.lock.json").read_text(
                 encoding="utf-8"
@@ -116,11 +116,11 @@ class SkillProvenanceTests(unittest.TestCase):
         locked_tools = {tool["name"]: tool for tool in tool_lock["tools"]}
 
         for name in ("rlm-tools-bsl", "rlm-bsl-index"):
-            self.assertEqual(locked_tools[name]["version"], "1.21.0")
-            self.assertEqual(locked_tools[name]["sourceTag"], "v1.21.0")
+            self.assertEqual(locked_tools[name]["version"], "1.24.0")
+            self.assertEqual(locked_tools[name]["sourceTag"], "v1.24.0")
             self.assertEqual(
                 locked_tools[name]["sourceCommit"],
-                "4913d976fbb4eee69d380464bfebda5dfa45c635",
+                "28695871516319a8678f397244cb9ce3b20abfdb",
             )
 
     def test_bsl_analyzer_is_locked_to_reviewed_0_2_37(self) -> None:
@@ -192,12 +192,12 @@ class SkillProvenanceTests(unittest.TestCase):
         self.assertEqual(products["bsl-analyzer"]["locked"], "v0.2.37")
         self.assertEqual(products["bsl-analyzer"]["latest"], "v0.2.43")
         self.assertEqual(products["bsl-analyzer"]["status"], "needs-review")
-        self.assertEqual(products["rlm-tools-bsl"]["locked"], "v1.21.0")
-        self.assertEqual(products["rlm-tools-bsl"]["latest"], "v1.23.0")
-        self.assertEqual(products["rlm-tools-bsl"]["status"], "needs-review")
-        self.assertEqual(products["rlm-bsl-index"]["locked"], "v1.21.0")
-        self.assertEqual(products["rlm-bsl-index"]["latest"], "v1.23.0")
-        self.assertEqual(products["rlm-bsl-index"]["status"], "needs-review")
+        self.assertEqual(products["rlm-tools-bsl"]["locked"], "v1.24.0")
+        self.assertEqual(products["rlm-tools-bsl"]["latest"], "v1.24.0")
+        self.assertEqual(products["rlm-tools-bsl"]["status"], "applied")
+        self.assertEqual(products["rlm-bsl-index"]["locked"], "v1.24.0")
+        self.assertEqual(products["rlm-bsl-index"]["latest"], "v1.24.0")
+        self.assertEqual(products["rlm-bsl-index"]["status"], "applied")
         self.assertEqual(products["v8-runner"]["locked"], "v0.5.1")
         self.assertEqual(products["v8-runner"]["latest"], "v0.5.1")
         self.assertEqual(products["v8-runner"]["status"], "applied")

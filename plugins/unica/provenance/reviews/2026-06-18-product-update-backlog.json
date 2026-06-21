@@ -18,24 +18,24 @@
     {
       "id": "rlm-tools-bsl",
       "kind": "bundled-tool",
-      "locked": "v1.21.0",
-      "latest": "v1.23.0",
+      "locked": "v1.24.0",
+      "latest": "v1.24.0",
       "risk": "medium",
       "batch": "rlm-index-contract",
-      "status": "needs-review",
+      "status": "applied",
       "contractGate": true,
-      "notes": "v1.21.0 was applied together with rlm-bsl-index; v1.22.0 and v1.23.0 add token-efficiency helpers and get_object_profile/read-only helper batching. Review helper contracts before exposing any new Unica capability."
+      "notes": "Updated together with rlm-bsl-index to v1.24.0. v1.23.0/v1.24.0 add read-only helper efficiency changes, get_object_profile, count_only, truncation metadata, and overrides_count; no raw RLM helper guidance is exposed through skills."
     },
     {
       "id": "rlm-bsl-index",
       "kind": "bundled-tool",
-      "locked": "v1.21.0",
-      "latest": "v1.23.0",
+      "locked": "v1.24.0",
+      "latest": "v1.24.0",
       "risk": "medium",
       "batch": "rlm-index-contract",
-      "status": "needs-review",
+      "status": "applied",
       "contractGate": true,
-      "notes": "v1.23.0 release states BUILDER_VERSION remains 14 and rebuild is not required, but bsl_index.py changed substantially; verify schema, stdout, and index update behavior before moving tools.lock.json."
+      "notes": "v1.24.0 release states index schema and BUILDER_VERSION remain 14, so production index rebuild is not required. Contract gates verify build/info/update, schema tables used by Unica SQL, and generated package launchers."
     },
     {
       "id": "v8-runner",

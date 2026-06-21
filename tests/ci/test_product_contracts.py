@@ -42,6 +42,11 @@ class ProductContractTests(unittest.TestCase):
             )
             self.write_script(
                 scripts_dir,
+                "run-rlm-tools-bsl.sh",
+                "#!/usr/bin/env sh\nprintf '%s\\n' '--transport stdio streamable-http service'\n",
+            )
+            self.write_script(
+                scripts_dir,
                 "run-v8-runner.sh",
                 "#!/usr/bin/env sh\nprintf '%s\\n' 'v8-runner 0.5.1 version build'\n",
             )
@@ -69,6 +74,11 @@ class ProductContractTests(unittest.TestCase):
             )
             self.write_script(
                 scripts_dir,
+                "run-rlm-tools-bsl.sh",
+                "#!/usr/bin/env sh\nprintf '%s\\n' '--transport stdio streamable-http service'\n",
+            )
+            self.write_script(
+                scripts_dir,
                 "run-v8-runner.sh",
                 "#!/usr/bin/env sh\nprintf '%s\\n' 'v8-runner 0.5.1 version build'\n",
             )
@@ -84,11 +94,36 @@ class ProductContractTests(unittest.TestCase):
             scripts_dir = Path(tmp)
             self.write_script(scripts_dir, "run-bsl-analyzer.sh", "#!/usr/bin/env sh\nprintf '%s\\n' 'analyze'\n")
             self.write_script(scripts_dir, "run-rlm-bsl-index.sh", "#!/usr/bin/env sh\nprintf '%s\\n' 'index build update info'\n")
+            self.write_script(
+                scripts_dir,
+                "run-rlm-tools-bsl.sh",
+                "#!/usr/bin/env sh\nprintf '%s\\n' '--transport stdio streamable-http service'\n",
+            )
             self.write_script(scripts_dir, "run-v8-runner.sh", "#!/usr/bin/env sh\nprintf '%s\\n' 'v8-runner version build'\n")
 
             errors = module.check_tool_contracts(scripts_dir)
 
         self.assertTrue(any("--source-dir" in error for error in errors), errors)
+
+    def test_tool_help_contracts_report_missing_rlm_server_transport_surface(self) -> None:
+        module = load_contract_module()
+
+        with tempfile.TemporaryDirectory() as tmp:
+            scripts_dir = Path(tmp)
+            self.write_script(
+                scripts_dir,
+                "run-bsl-analyzer.sh",
+                "#!/usr/bin/env sh\n"
+                "printf '%s\\n' '--source-dir --format jsonl baseline --profile workspace reference "
+                "--mode stdio --scenarios --json mcp serve analyze search smoke'\n",
+            )
+            self.write_script(scripts_dir, "run-rlm-bsl-index.sh", "#!/usr/bin/env sh\nprintf '%s\\n' 'index build update info'\n")
+            self.write_script(scripts_dir, "run-rlm-tools-bsl.sh", "#!/usr/bin/env sh\nprintf '%s\\n' 'service'\n")
+            self.write_script(scripts_dir, "run-v8-runner.sh", "#!/usr/bin/env sh\nprintf '%s\\n' 'v8-runner version build'\n")
+
+            errors = module.check_tool_contracts(scripts_dir)
+
+        self.assertTrue(any("rlm-tools-bsl server" in error and "--transport" in error for error in errors), errors)
 
     def test_rlm_schema_contract_checks_tables_meta_and_columns_used_by_unica_sql(self) -> None:
         module = load_contract_module()

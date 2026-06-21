@@ -27,6 +27,12 @@ TOOL_HELP_CHECKS = [
     ("rlm-bsl-index build", "run-rlm-bsl-index.sh", ["index", "build", "--help"], ["build"]),
     ("rlm-bsl-index update", "run-rlm-bsl-index.sh", ["index", "update", "--help"], ["update"]),
     ("rlm-bsl-index info", "run-rlm-bsl-index.sh", ["index", "info", "--help"], ["info"]),
+    (
+        "rlm-tools-bsl server",
+        "run-rlm-tools-bsl.sh",
+        ["--help"],
+        ["--transport", "stdio", "streamable-http"],
+    ),
     ("v8-runner version", "run-v8-runner.sh", ["--version"], ["v8-runner"]),
     ("v8-runner build", "run-v8-runner.sh", ["build", "--help"], ["build"]),
 ]
