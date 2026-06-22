@@ -24,6 +24,8 @@ Expected:
 - `run-unica.sh --help` prints `unica <version>` and describes the stdio MCP
   orchestrator.
 - Old adapter names are not public MCP registrations.
+- Hidden workspace analyzer services are internal implementation details and do
+  not add keys under `mcpServers`.
 - Skill-local operation files are not a target execution path. The target path is
   MCP `unica`; package wrapper scripts are launcher infrastructure and are
   allowed.
@@ -81,6 +83,7 @@ assert "unica.form.edit" in tools
 assert "unica.build.load" in tools
 assert "unica.runtime.execute" in tools
 assert "unica.standards.explain" in tools
+assert all(not tool.startswith("bsl-") for tool in tools)
 payload = json.loads(responses[2]["result"]["content"][0]["text"])
 assert payload["cache"]["mode"] == "dry-run"
 assert "FormChanged" in payload["cache"]["events"]
@@ -132,3 +135,12 @@ with the normal CI scripts. A valid generated package must satisfy:
 Use a clean `CODEX_HOME` when validating a packaged plugin. The acceptance
 signal is a fresh prompt showing Unica skills and only the public MCP server
 provided by the plugin, not stale cached MCP registrations.
+
+## Workspace Service Acceptance
+
+- `unica.code.grep` must not create `.build/unica/services`.
+- Analyzer-backed tools may create `.build/unica/services/<service-key>`.
+- Two sessions using the same workspace/source root should reuse a matching live
+  service record.
+- Another workspace or source root must use another service key.
+- Stale or version-mismatched `service.json` records must be replaced.

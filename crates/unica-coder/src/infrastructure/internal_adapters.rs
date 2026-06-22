@@ -3,16 +3,14 @@ use crate::infrastructure::legacy_scripts::{find_plugin_root, value_to_cli_strin
 use crate::infrastructure::workspace_index::{
     IndexReadiness, IndexRunner, WorkspaceIndexService, SYSTEM_INDEX_RUNNER,
 };
+use crate::infrastructure::workspace_services::WorkspaceServiceManager;
 use crate::infrastructure::AdapterOutcome;
 use rusqlite::{params, Connection, OptionalExtension, Row};
 use serde_json::{json, Map, Value};
 use std::collections::BTreeSet;
 use std::env;
-use std::io::{BufRead, BufReader, Read, Write};
 use std::path::{Component, Path, PathBuf};
 use std::process::{Command, Stdio};
-use std::sync::mpsc;
-use std::thread;
 use std::time::{Duration, Instant};
 
 const DEFAULT_PROCESS_TIMEOUT: Duration = Duration::from_secs(120);
@@ -43,6 +41,7 @@ pub struct BslMcpCommand {
     pub program: PathBuf,
     pub args: Vec<String>,
     pub cwd: PathBuf,
+    pub source_dir: PathBuf,
     pub timeout: Duration,
     pub tool_name: &'static str,
     pub tool_args: Value,
@@ -78,11 +77,13 @@ pub struct RuntimeAdapter<'a> {
 pub struct CodeSearchAdapter<'a> {
     analyzer_runner: &'a dyn ProcessRunner,
     index_runner: &'a dyn IndexRunner,
+    use_workspace_service: bool,
 }
 
 pub struct CodeNavigationAdapter<'a> {
     index_runner: &'a dyn IndexRunner,
     grep_runner: &'a dyn ProcessRunner,
+    use_workspace_service: bool,
 }
 
 pub struct BslAnalyzerMcpAdapter<'a> {
@@ -346,6 +347,7 @@ impl<'a> CodeSearchAdapter<'a> {
         Self {
             analyzer_runner: &SYSTEM_PROCESS_RUNNER,
             index_runner: &SYSTEM_INDEX_RUNNER,
+            use_workspace_service: true,
         }
     }
 
@@ -356,6 +358,7 @@ impl<'a> CodeSearchAdapter<'a> {
         Self {
             analyzer_runner,
             index_runner,
+            use_workspace_service: false,
         }
     }
 
@@ -382,7 +385,7 @@ impl<'a> CodeSearchAdapter<'a> {
         let analyzer_stderr = analyzer.stderr.take();
         let mut stdout = format_section("bsl-analyzer", &analyzer_stdout);
 
-        match WorkspaceIndexService::with_runner(self.index_runner).ready_index(context, args) {
+        match self.rlm_readiness(context, args) {
             IndexReadiness::Ready { db_path } => match search_rlm_index(&db_path, args) {
                 Ok(Some(rlm_stdout)) => {
                     stdout.push_str("\n\n");
@@ -409,6 +412,23 @@ impl<'a> CodeSearchAdapter<'a> {
         analyzer.stdout = Some(stdout);
         analyzer.stderr = analyzer_stderr;
         Ok(analyzer)
+    }
+
+    fn rlm_readiness(
+        &self,
+        context: &WorkspaceContext,
+        args: &Map<String, Value>,
+    ) -> IndexReadiness {
+        if self.use_workspace_service {
+            match resolve_source_dir(context, args).and_then(|source_dir| {
+                WorkspaceServiceManager::new().rlm_readiness(context, &source_dir, args)
+            }) {
+                Ok(readiness) => readiness,
+                Err(error) => IndexReadiness::Unavailable(error),
+            }
+        } else {
+            WorkspaceIndexService::with_runner(self.index_runner).ready_index(context, args)
+        }
     }
 }
 
@@ -493,6 +513,7 @@ impl<'a> CodeNavigationAdapter<'a> {
         Self {
             index_runner: &SYSTEM_INDEX_RUNNER,
             grep_runner: &SYSTEM_PROCESS_RUNNER,
+            use_workspace_service: true,
         }
     }
 
@@ -503,6 +524,7 @@ impl<'a> CodeNavigationAdapter<'a> {
         Self {
             index_runner,
             grep_runner,
+            use_workspace_service: false,
         }
     }
 
@@ -542,8 +564,7 @@ impl<'a> CodeNavigationAdapter<'a> {
         args: &Map<String, Value>,
         context: &WorkspaceContext,
     ) -> Result<AdapterOutcome, String> {
-        let readiness =
-            WorkspaceIndexService::with_runner(self.index_runner).ready_index(context, args);
+        let readiness = self.rlm_readiness(context, args);
         let db_path = match readiness {
             IndexReadiness::Ready { db_path } => db_path,
             other => return Ok(index_unavailable_outcome(tool_name, other)),
@@ -569,8 +590,7 @@ impl<'a> CodeNavigationAdapter<'a> {
         context: &WorkspaceContext,
     ) -> Result<AdapterOutcome, String> {
         let candidates = index_path_candidates(context, args, "path")?;
-        let readiness =
-            WorkspaceIndexService::with_runner(self.index_runner).ready_index(context, args);
+        let readiness = self.rlm_readiness(context, args);
         let db_path = match readiness {
             IndexReadiness::Ready { db_path } => db_path,
             other => return Ok(index_unavailable_outcome(tool_name, other)),
@@ -687,8 +707,7 @@ impl<'a> CodeNavigationAdapter<'a> {
         args: &Map<String, Value>,
         context: &WorkspaceContext,
     ) -> Result<AdapterOutcome, String> {
-        let readiness =
-            WorkspaceIndexService::with_runner(self.index_runner).ready_index(context, args);
+        let readiness = self.rlm_readiness(context, args);
         let db_path = match readiness {
             IndexReadiness::Ready { db_path } => db_path,
             other => return Ok(index_unavailable_outcome(tool_name, other)),
@@ -709,6 +728,23 @@ impl<'a> CodeNavigationAdapter<'a> {
                 metadata_profile_unavailable_outcome(tool_name, &db_path, &error),
             ),
             Err(error) => Err(error),
+        }
+    }
+
+    fn rlm_readiness(
+        &self,
+        context: &WorkspaceContext,
+        args: &Map<String, Value>,
+    ) -> IndexReadiness {
+        if self.use_workspace_service {
+            match resolve_source_dir(context, args).and_then(|source_dir| {
+                WorkspaceServiceManager::new().rlm_readiness(context, &source_dir, args)
+            }) {
+                Ok(readiness) => readiness,
+                Err(error) => IndexReadiness::Unavailable(error),
+            }
+        } else {
+            WorkspaceIndexService::with_runner(self.index_runner).ready_index(context, args)
         }
     }
 }
@@ -1632,6 +1668,7 @@ fn bsl_mcp_command(
             "stdio".to_string(),
         ],
         cwd: context.cwd.clone(),
+        source_dir: source_dir.to_path_buf(),
         timeout: DEFAULT_PROCESS_TIMEOUT,
         tool_name: remote_tool,
         tool_args,
@@ -1831,158 +1868,19 @@ impl ProcessRunner for SystemProcessRunner {
 
 impl BslMcpRunner for SystemBslMcpRunner {
     fn call(&self, command: &BslMcpCommand) -> Result<BslMcpOutput, String> {
-        let mut child = Command::new(&command.program)
-            .args(&command.args)
-            .current_dir(&command.cwd)
-            .stdin(Stdio::piped())
-            .stdout(Stdio::piped())
-            .stderr(Stdio::piped())
-            .spawn()
-            .map_err(|err| format!("failed to execute bsl-analyzer MCP process: {err}"))?;
-
-        let mut stdin = child
-            .stdin
-            .take()
-            .ok_or_else(|| "failed to open bsl-analyzer MCP stdin".to_string())?;
-        let stdout = child
-            .stdout
-            .take()
-            .ok_or_else(|| "failed to open bsl-analyzer MCP stdout".to_string())?;
-        let stderr = child
-            .stderr
-            .take()
-            .ok_or_else(|| "failed to open bsl-analyzer MCP stderr".to_string())?;
-
-        let (tx, rx) = mpsc::channel::<String>();
-        let stdout_reader = thread::spawn(move || {
-            let mut reader = BufReader::new(stdout);
-            loop {
-                let mut line = String::new();
-                match reader.read_line(&mut line) {
-                    Ok(0) => break,
-                    Ok(_) => {
-                        if tx.send(line).is_err() {
-                            break;
-                        }
-                    }
-                    Err(_) => break,
-                }
-            }
-        });
-        let stderr_reader = thread::spawn(move || {
-            let mut reader = BufReader::new(stderr);
-            let mut text = String::new();
-            let _ = reader.read_to_string(&mut text);
-            text
-        });
-
-        let result = (|| {
-            send_mcp_json(
-                &mut stdin,
-                &json!({
-                    "jsonrpc": "2.0",
-                    "id": 1,
-                    "method": "initialize",
-                    "params": {
-                        "protocolVersion": "2025-03-26",
-                        "capabilities": {},
-                        "clientInfo": {
-                            "name": "unica",
-                            "version": env!("CARGO_PKG_VERSION")
-                        }
-                    }
-                }),
-            )?;
-            let _ = read_mcp_response(&rx, 1, command.timeout)?;
-            send_mcp_json(
-                &mut stdin,
-                &json!({
-                    "jsonrpc": "2.0",
-                    "method": "notifications/initialized"
-                }),
-            )?;
-            send_mcp_json(
-                &mut stdin,
-                &json!({
-                    "jsonrpc": "2.0",
-                    "id": 2,
-                    "method": "tools/call",
-                    "params": {
-                        "name": command.tool_name,
-                        "arguments": command.tool_args
-                    }
-                }),
-            )?;
-            let response = read_mcp_response(&rx, 2, command.timeout)?;
-            mcp_tool_text(&response)
-        })();
-
-        let _ = child.kill();
-        let _ = child.wait();
-        let _ = stdout_reader.join();
-        let stderr = stderr_reader.join().unwrap_or_default();
-
-        result.map(|result_text| BslMcpOutput {
-            result_text,
-            stderr,
+        let context = WorkspaceContext::discover(command.cwd.clone())?;
+        let output = WorkspaceServiceManager::new().call_bsl_mcp(
+            &context,
+            &command.source_dir,
+            command.tool_name,
+            command.tool_args.clone(),
+            command.timeout,
+        )?;
+        Ok(BslMcpOutput {
+            result_text: output.result_text,
+            stderr: output.stderr,
         })
     }
-}
-
-fn send_mcp_json(stdin: &mut impl Write, payload: &Value) -> Result<(), String> {
-    stdin
-        .write_all(payload.to_string().as_bytes())
-        .and_then(|_| stdin.write_all(b"\n"))
-        .and_then(|_| stdin.flush())
-        .map_err(|err| format!("failed to write bsl-analyzer MCP request: {err}"))
-}
-
-fn read_mcp_response(
-    rx: &mpsc::Receiver<String>,
-    id: i64,
-    timeout: Duration,
-) -> Result<Value, String> {
-    let started = Instant::now();
-    while started.elapsed() < timeout {
-        match rx.recv_timeout(Duration::from_millis(50)) {
-            Ok(line) => {
-                let Ok(value) = serde_json::from_str::<Value>(line.trim()) else {
-                    continue;
-                };
-                if value.get("id").and_then(Value::as_i64) == Some(id) {
-                    return Ok(value);
-                }
-            }
-            Err(mpsc::RecvTimeoutError::Timeout) => {}
-            Err(mpsc::RecvTimeoutError::Disconnected) => {
-                return Err("bsl-analyzer MCP stdout closed before response".to_string());
-            }
-        }
-    }
-    Err(format!("bsl-analyzer MCP request {id} timed out"))
-}
-
-fn mcp_tool_text(response: &Value) -> Result<String, String> {
-    if let Some(error) = response.get("error") {
-        let message = error
-            .get("message")
-            .and_then(Value::as_str)
-            .unwrap_or("bsl-analyzer MCP JSON-RPC error");
-        return Err(message.to_string());
-    }
-    let result = response
-        .get("result")
-        .ok_or_else(|| "bsl-analyzer MCP response is missing result".to_string())?;
-    if let Some(content) = result.get("content").and_then(Value::as_array) {
-        let parts = content
-            .iter()
-            .filter_map(|item| item.get("text").and_then(Value::as_str))
-            .collect::<Vec<_>>();
-        if !parts.is_empty() {
-            return Ok(parts.join("\n"));
-        }
-    }
-    Ok(result.to_string())
 }
 
 pub struct StandardsAdapter;

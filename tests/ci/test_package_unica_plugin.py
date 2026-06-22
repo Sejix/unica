@@ -58,6 +58,17 @@ class PackageUnicaPluginTests(unittest.TestCase):
         self.assertIn("orchestrator", server["note"])
         self.assertNotIn("unica-coder", json.dumps(server))
 
+    def test_packaged_launcher_exports_plugin_root_for_workspace_sidecars(self) -> None:
+        repo_root = Path(__file__).resolve().parents[2]
+        launcher = repo_root / "plugins" / "unica" / "scripts" / "run-tool.sh"
+        text = launcher.read_text(encoding="utf-8")
+
+        self.assertIn('export UNICA_PLUGIN_ROOT="$PLUGIN_ROOT"', text)
+        self.assertLess(
+            text.index('export UNICA_PLUGIN_ROOT="$PLUGIN_ROOT"'),
+            text.index('exec "$BINARY" "$@"'),
+        )
+
     def write_bundle(self, root: Path, target: str, module) -> Path:
         bundle = root / f"unica-tools-{target}"
         bin_dir = bundle / "bin" / target
@@ -211,7 +222,7 @@ class PackageUnicaPluginTests(unittest.TestCase):
             binary.write_text(
                 "#!/usr/bin/env sh\n"
                 "if [ \"$1\" = \"--help\" ]; then\n"
-                "  echo 'unica 0.4.3'\n"
+                "  echo 'unica 0.4.4'\n"
                 "  echo 'stdio MCP orchestrator for Unica workflows'\n"
                 "  exit 0\n"
                 "fi\n"
@@ -227,7 +238,7 @@ class PackageUnicaPluginTests(unittest.TestCase):
                         "tools": [
                             {
                                 "name": "unica",
-                                "version": "0.4.3",
+                                "version": "0.4.4",
                                 "repository": "https://github.com/IngvarConsulting/unica",
                                 "upstreamUrl": "https://github.com/IngvarConsulting/unica/releases/tag/workspace",
                                 "sourceTag": "workspace",
@@ -251,7 +262,7 @@ class PackageUnicaPluginTests(unittest.TestCase):
                         "tools": [
                             {
                                 "name": "unica",
-                                "version": "0.4.3",
+                                "version": "0.4.4",
                                 "repository": "https://github.com/IngvarConsulting/unica",
                                 "sourceTag": "workspace",
                                 "sourceCommit": "workspace",
@@ -333,7 +344,7 @@ class PackageUnicaPluginTests(unittest.TestCase):
                 stderr=subprocess.PIPE,
                 check=True,
             )
-            self.assertIn("unica 0.4.3", result.stdout)
+            self.assertIn("unica 0.4.4", result.stdout)
 
 
 if __name__ == "__main__":

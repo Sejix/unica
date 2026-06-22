@@ -12,7 +12,7 @@ use crate::infrastructure::native_operations::common::{
     SupportGuardViolation,
 };
 use crate::infrastructure::native_operations::{meta, template, NativeOperationAdapter};
-use crate::infrastructure::workspace_index::WorkspaceIndexService;
+use crate::infrastructure::workspace_services::WorkspaceServiceManager;
 use crate::infrastructure::workspace_state::WorkspaceStateRepository;
 use crate::infrastructure::AdapterOutcome;
 use serde::Serialize;
@@ -305,11 +305,7 @@ fn call_tool(spec: ToolSpec, args: &Map<String, Value>) -> Result<OperationResul
     tool_contracts::validate_workspace_paths(spec, args, dry_run, &context)?;
     tool_contracts::validate_native_source_set_format(spec, args, dry_run, &context)?;
     let state_repo = WorkspaceStateRepository::new(&context);
-    let index_report = if uses_bsl_index(spec) {
-        WorkspaceIndexService::new().start_for_workspace(&context, args, dry_run)
-    } else {
-        Default::default()
-    };
+    let index_report = crate::infrastructure::workspace_index::IndexStartReport::default();
     let support_guard_warning = if spec.mutating && !dry_run {
         match support_guard_check(spec, args, &context)? {
             SupportGuardCheck::Allow => None,
@@ -392,6 +388,9 @@ fn call_tool(spec: ToolSpec, args: &Map<String, Value>) -> Result<OperationResul
         Vec::new()
     };
     let cache = state_repo.report(&context, &events, dry_run, spec.cache_access)?;
+    if spec.mutating && !dry_run && outcome.ok && !events.is_empty() {
+        WorkspaceServiceManager::new().notify_invalidation(&context, &events);
+    }
 
     Ok(OperationResult {
         ok: outcome.ok,
@@ -409,11 +408,6 @@ fn call_tool(spec: ToolSpec, args: &Map<String, Value>) -> Result<OperationResul
 
 fn should_emit_events(spec: ToolSpec, dry_run: bool, outcome: &AdapterOutcome) -> bool {
     spec.mutating && (dry_run || outcome.ok)
-}
-
-fn uses_bsl_index(spec: ToolSpec) -> bool {
-    spec.cache_access.reads.contains(&"bsl_index")
-        || spec.cache_access.writes.contains(&"bsl_index")
 }
 
 enum SupportGuardCheck {
@@ -2273,6 +2267,10 @@ mod tests {
         assert!(
             !crate::infrastructure::workspace_index::status_path(&context).exists(),
             "unica.code.grep must not start or mark RLM index state"
+        );
+        assert!(
+            !context.cache_root.join("services").exists(),
+            "unica.code.grep must not start workspace analyzer services"
         );
 
         let _ = std::fs::remove_dir_all(root);

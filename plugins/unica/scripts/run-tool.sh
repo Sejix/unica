@@ -96,4 +96,5 @@ if [ "$ACTUAL_SHA" != "$EXPECTED_SHA" ]; then
   exit 65
 fi
 
+export UNICA_PLUGIN_ROOT="$PLUGIN_ROOT"
 exec "$BINARY" "$@"

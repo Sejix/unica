@@ -24,6 +24,17 @@ Skill-local Python/PowerShell operation files are not a target adapter class.
 They are temporary migration sources for behavior that must move into native
 `unica.*` MCP handlers.
 
+## Workspace-scoped Services
+
+Some internal adapters may run behind hidden workspace services. These services
+are owned by `unica`, scoped by workspace and source root, and coordinated
+through volatile cache state. They are not public MCP registrations and must not
+appear in skills as routing targets.
+
+The lifecycle rule is lazy start, reuse while live, invalidate on domain events,
+and natural exit after idle or max-age limits. Cheap read-only tools that do not
+need warm analyzer/index state must not start the service.
+
 ## Source Of Truth Order
 
 When documents disagree, use this order:

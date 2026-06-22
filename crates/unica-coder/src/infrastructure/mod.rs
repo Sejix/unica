@@ -3,6 +3,7 @@ pub mod legacy_scripts;
 pub mod native_operations;
 pub mod path_policy;
 pub mod workspace_index;
+pub mod workspace_services;
 pub mod workspace_state;
 
 use serde::Serialize;

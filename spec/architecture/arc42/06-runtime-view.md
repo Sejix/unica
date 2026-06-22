@@ -35,3 +35,21 @@
 
 Read tools do not emit mutation events by default. They may inspect current cache
 state and, in future slices, trigger lazy refresh if a required cache is stale.
+
+## Workspace Analyzer Service
+
+1. `unica.code.graph`, MCP-mode `unica.code.diagnostics`, and RLM-backed code
+   navigation resolve the workspace and source root.
+2. The application asks the internal workspace service manager for a service
+   keyed by `workspaceRoot + sourceRoot`.
+3. If a matching live service exists, `unica` sends an internal localhost JSONL
+   request using the token from `service.json`.
+4. If the service is missing, stale, unreachable, or has a mismatched version,
+   `unica` starts hidden mode `unica --workspace-service ...`.
+5. The service keeps one persistent `bsl-analyzer` workspace MCP child and
+   restarts it when source generation or explicit invalidation changes.
+6. RLM index readiness/build/update is coordinated by the same service, but the
+   RLM index remains a persistent file index under the workspace cache root.
+
+`initialize`, `tools/list`, `project.status`, `project.map`, `dryRun`, and
+`unica.code.grep` do not start workspace analyzer services.

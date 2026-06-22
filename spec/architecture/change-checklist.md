@@ -26,12 +26,18 @@ cache behavior, or packaging metadata.
 - [ ] Dry-run reports impact without writing state.
 - [ ] Applied operation writes state only after successful mutation or approved
   state transition.
+- [ ] Applied mutations notify live workspace services when analyzer or index
+  caches are affected.
 
 ## Adapters
 
 - [ ] Internal adapter errors are summarized in `warnings` or `errors`.
 - [ ] Adapter command construction is covered by focused tests when behavior is
   non-trivial.
+- [ ] Analyzer/index adapters that need warm workspace state go through the
+  workspace service manager.
+- [ ] Cheap read-only adapters such as `unica.code.grep` do not start workspace
+  services.
 - [ ] If a skill-local operation file is still used, it is recorded as migration
   debt with a parity/removal task.
 - [ ] Native MCP implementation and fixture parity exist before deleting the

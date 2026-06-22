@@ -109,23 +109,30 @@ pub fn find_plugin_root(cwd: &Path) -> Option<PathBuf> {
     }
 
     for base in cwd.ancestors() {
-        let candidate = base.join("plugins").join("unica");
-        if candidate.join("skills").is_dir() {
-            return Some(candidate);
-        }
-        if base.join("skills").is_dir() && base.join(".mcp.json").is_file() {
-            return Some(base.to_path_buf());
+        if let Some(root) = plugin_root_from_base(base) {
+            return Some(root);
         }
     }
 
     if let Ok(exe) = env::current_exe() {
         for base in exe.ancestors() {
-            if base.join("skills").is_dir() && base.join(".mcp.json").is_file() {
-                return Some(base.to_path_buf());
+            if let Some(root) = plugin_root_from_base(base) {
+                return Some(root);
             }
         }
     }
 
+    None
+}
+
+fn plugin_root_from_base(base: &Path) -> Option<PathBuf> {
+    let candidate = base.join("plugins").join("unica");
+    if candidate.join("skills").is_dir() {
+        return Some(candidate);
+    }
+    if base.join("skills").is_dir() && base.join(".mcp.json").is_file() {
+        return Some(base.to_path_buf());
+    }
     None
 }
 

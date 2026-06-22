@@ -28,3 +28,12 @@ visibility.
 
 Volatile state defaults to `.build/unica` under the workspace root and can be
 overridden by `UNICA_CACHE_DIR`.
+
+Workspace-scoped internal services store runtime state under
+`.build/unica/services/<service-key>/` or the equivalent `UNICA_CACHE_DIR`
+location. The service record contains the localhost port, process id, token,
+version, workspace root, source root, and access timestamps.
+
+Packaged launchers export `UNICA_PLUGIN_ROOT` before starting bundled binaries
+so hidden workspace services can locate internal adapter scripts even when the
+user workspace is outside the plugin directory.
