@@ -358,10 +358,10 @@ impl<'a> WorkspaceIndexService<'a> {
             info,
             status_path,
             lock_path: lock.clone(),
-            lock_id,
+            lock_id: lock_id.clone(),
         };
         if let Err(error) = self.runner.start_background(job) {
-            let _ = fs::remove_file(lock);
+            remove_owned_lock(&lock, &lock_id);
             let _ = write_status(context, BslIndexStatus::failed(error.as_str(), None));
             return IndexStartReport::default();
         }
@@ -1348,6 +1348,24 @@ mod tests {
         cleanup(&context);
     }
 
+    #[test]
+    fn failed_background_start_does_not_remove_lock_replaced_by_new_owner() {
+        let context = test_context("start-background-owner");
+        fs::create_dir_all(context.workspace_root.join("src/CommonModules")).unwrap();
+        let lock = lock_path(&context);
+        let runner = FailingReplacingIndexRunner {
+            replacement_lock_id: "new-owner".to_string(),
+        };
+        let service = WorkspaceIndexService::with_runner(&runner);
+
+        let report = service.start_for_workspace(&context, &Map::new(), false);
+
+        assert!(report.warnings.is_empty());
+        let current = read_lock_path(&lock).expect("replacement lock should remain");
+        assert_eq!(current.lock_id, "new-owner");
+        cleanup(&context);
+    }
+
     #[derive(Default)]
     struct RecordingIndexRunner {
         outputs: RefCell<Vec<IndexOutput>>,
@@ -1367,6 +1385,23 @@ mod tests {
         fn start_background(&self, job: IndexBackgroundJob) -> Result<(), String> {
             self.backgrounds.borrow_mut().push(job);
             Ok(())
+        }
+    }
+
+    struct FailingReplacingIndexRunner {
+        replacement_lock_id: String,
+    }
+
+    impl IndexRunner for FailingReplacingIndexRunner {
+        fn run(&self, _command: &IndexCommand) -> Result<IndexOutput, String> {
+            Ok(IndexOutput::success("Index not found: /tmp/bsl_index.db"))
+        }
+
+        fn start_background(&self, job: IndexBackgroundJob) -> Result<(), String> {
+            let mut replacement = BslIndexLock::new("build", &job.source_root);
+            replacement.lock_id = self.replacement_lock_id.clone();
+            write_lock_path(&job.lock_path, replacement).unwrap();
+            Err("simulated background start failure".to_string())
         }
     }
 
