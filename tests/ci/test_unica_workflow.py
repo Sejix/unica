@@ -23,8 +23,10 @@ class UnicaWorkflowGuardrailTests(unittest.TestCase):
             "plugins/unica/**",
             "scripts/ci/**",
             "scripts/install-unica.sh",
+            "scripts/install-unica.ps1",
             "tests/ci/**",
             "tests/fixtures/**",
+            "docs/releases/**",
             "spec/**",
         ]
 
@@ -83,9 +85,18 @@ class UnicaWorkflowGuardrailTests(unittest.TestCase):
     def test_build_tools_waits_for_source_verification_and_sets_up_rust(self) -> None:
         text = self.workflow_text()
         self.assertIn("build-tools:", text)
-        self.assertIn("needs:\n      - verify-source\n      - classify-changes", text)
+        self.assertIn("needs:\n      - verify-source\n      - verify-windows-installer\n      - classify-changes", text)
         self.assertIn("uses: dtolnay/rust-toolchain@stable", text)
         self.assertIn("python scripts/ci/build-unica-tools.py", text)
+
+    def test_windows_installer_is_smoked_on_windows_powershell(self) -> None:
+        text = self.workflow_text()
+
+        self.assertIn("verify-windows-installer:", text)
+        self.assertIn("runs-on: windows-latest", text)
+        self.assertIn("shell: powershell", text)
+        self.assertIn(".\\scripts\\install-unica.ps1 -Target win-x64 -PrintDownloadUrl", text)
+        self.assertIn("unica-codex-marketplace-win-x64.zip", text)
 
     def test_release_publishing_is_separate_from_packaging(self) -> None:
         text = self.workflow_text()
@@ -98,6 +109,8 @@ class UnicaWorkflowGuardrailTests(unittest.TestCase):
         self.assertIn("publish-installer-asset:", text)
         self.assertIn("if: startsWith(github.ref, 'refs/tags/')", text)
         self.assertIn("permissions:\n      contents: write", text)
+        self.assertIn("dist/install-unica.ps1", text)
+        self.assertIn("body_path: docs/releases/${{ github.ref_name }}.md", text)
 
     def test_release_assessment_uses_linux_marketplace_package(self) -> None:
         text = self.workflow_text()
@@ -127,6 +140,8 @@ class UnicaWorkflowGuardrailTests(unittest.TestCase):
 
         publish_installer = text[text.index("  publish-installer-asset:") :]
         self.assertIn("needs:\n      - installer\n      - publish-assessment-pages", publish_installer)
+        self.assertIn("dist/installer/install-unica.sh", publish_installer)
+        self.assertIn("dist/installer/install-unica.ps1", publish_installer)
 
 
 if __name__ == "__main__":

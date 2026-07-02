@@ -81,7 +81,8 @@ artifacts:
   `unica-codex-marketplace-darwin-arm64.tar.gz`,
   `unica-codex-marketplace-linux-x64.tar.gz`, and
   `unica-codex-marketplace-win-x64.zip`;
-- tag builds upload the same archives plus `install-unica.sh` to the GitHub Release.
+- tag builds upload the same archives plus `install-unica.sh` and
+  `install-unica.ps1` to the GitHub Release.
 
 ## MCP Contract
 
@@ -97,6 +98,11 @@ checkout `.mcp.json` uses
 `cargo run --manifest-path ../../Cargo.toml --bin unica` because binaries are
 not committed; release packaging rewrites `.mcp.json` to launch the
 platform-specific `./bin/<target>/unica` binary directly.
+
+Raw Git/source marketplace installs are development-only. They can expose
+skills and plugin metadata, but they do not provide target-specific binaries or
+a generated tool manifest. Users who need working MCP tools should install a
+release archive or a locally generated marketplace package.
 
 ## Reference Material
 

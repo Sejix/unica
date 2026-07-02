@@ -38,7 +38,11 @@ bundled tools such as `bsl-analyzer`, `v8-runner`, and
 exist.
 
 Register the repo-local marketplace from the repository root when you only need
-to inspect skills and metadata:
+to inspect skills and metadata. Do not use a raw Git/source marketplace snapshot
+as a working runtime install: source checkouts intentionally contain the
+placeholder `third-party/manifest.json` and no generated `bin/<target>/`
+binaries. Install a GitHub Release archive, run the installer, or build a local
+debug package when MCP tools must run.
 
 ```sh
 codex plugin marketplace add "$PWD"
@@ -123,7 +127,7 @@ accidentally using a different globally installed version.
 5. generate a target-specific `third-party/manifest.json` with SHA-256 checksums;
 6. write official marketplace metadata with visible display name `Unica` and plugin id `unica`;
 7. publish platform-specific archives such as `unica-codex-marketplace-darwin-arm64.tar.gz`, `unica-codex-marketplace-linux-x64.tar.gz`, and `unica-codex-marketplace-win-x64.zip` as workflow artifacts and, on tags, GitHub Release assets;
-8. publish `install-unica.sh` as a release asset for one-command installation.
+8. publish `install-unica.sh` and `install-unica.ps1` as release assets for one-command installation.
 
 The tool build script requires Python 3.10 or newer; CI uses Python 3.12 and
 creates a local venv under `.build/` for Python-packaged tools.

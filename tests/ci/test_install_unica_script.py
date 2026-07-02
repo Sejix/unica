@@ -8,6 +8,7 @@ from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 SCRIPT = REPO_ROOT / "scripts" / "install-unica.sh"
+PS_SCRIPT = REPO_ROOT / "scripts" / "install-unica.ps1"
 
 
 def script_command(*args: str) -> list[str]:
@@ -66,6 +67,23 @@ class InstallUnicaScriptTests(unittest.TestCase):
             "https://github.com/IngvarConsulting/unica/releases/latest/download/"
             "unica-codex-marketplace-win-x64.zip",
         )
+
+
+class InstallUnicaPowerShellScriptTests(unittest.TestCase):
+    def test_windows_installer_is_power_shell_51_friendly(self) -> None:
+        text = PS_SCRIPT.read_text(encoding="utf-8")
+
+        self.assertIn('[ValidateSet("win-x64")]', text)
+        self.assertIn("[Net.SecurityProtocolType]::Tls12", text)
+        self.assertIn("Invoke-WebRequest -Uri $Url -OutFile $Destination -UseBasicParsing", text)
+        self.assertIn("Expand-Archive -LiteralPath $archive -DestinationPath $extractDir -Force", text)
+        self.assertIn('"unica-codex-marketplace-$Target.$(Get-ArchiveExtension -Target $Target)"', text)
+        self.assertIn('"unica:meta-compile"', text)
+        self.assertIn('"unica:v8-runner"', text)
+        self.assertIn('"unica:db-auth-check"', text)
+        self.assertNotIn("$IsWindows", text)
+        self.assertNotIn("pwsh", text.lower())
+        self.assertNotIn("bash", text.lower())
 
 
 if __name__ == "__main__":

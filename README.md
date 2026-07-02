@@ -29,10 +29,21 @@ Unica - это плагин для Codex, который помогает раб
 curl -fsSL https://github.com/IngvarConsulting/unica/releases/latest/download/install-unica.sh | sh
 ```
 
+На Windows без Git Bash используйте Windows PowerShell 5.1:
+
+```powershell
+iwr https://github.com/IngvarConsulting/unica/releases/latest/download/install-unica.ps1 -OutFile install-unica.ps1
+powershell -ExecutionPolicy Bypass -File .\install-unica.ps1
+```
+
 Для установки конкретного релиза:
 
 ```sh
-curl -fsSL https://github.com/IngvarConsulting/unica/releases/latest/download/install-unica.sh | sh -s -- --version v0.4.4
+curl -fsSL https://github.com/IngvarConsulting/unica/releases/latest/download/install-unica.sh | sh -s -- --version v0.5.1
+```
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\install-unica.ps1 -Version v0.5.1
 ```
 
 Release assets собираются отдельно под платформы:
@@ -54,7 +65,11 @@ codex debug prompt-input 'test'
 
 ## Установка из исходников для разработки
 
-Этот режим нужен, если вы меняете сам плагин:
+Этот режим нужен, если вы меняете сам плагин. Git/source marketplace install
+из этого репозитория не является runtime-установкой: skills и metadata могут
+быть видны, но готовых `bin/<target>/` бинарников и generated
+`third-party/manifest.json` в source tree нет. Для рабочего MCP используйте
+release installer или generated marketplace archive.
 
 ```sh
 git clone https://github.com/IngvarConsulting/unica.git
@@ -78,4 +93,4 @@ scripts/dev/install-local-unica.sh
 - Внутренняя схема инструментов и сборки: `plugins/unica/references/tooling/internal-package.md`.
 - Список pinned-инструментов: `plugins/unica/third-party/tools.lock.json`.
 
-Официальная публикация в публичный каталог Codex будет отдельным шагом, когда OpenAI откроет self-serve публикацию плагинов. Сейчас репозиторий готовит воспроизводимый marketplace-пакет, который можно устанавливать как локальный или Git-backed marketplace.
+Официальная публикация в публичный каталог Codex будет отдельным шагом, когда OpenAI откроет self-serve публикацию плагинов. Сейчас репозиторий готовит воспроизводимый marketplace-пакет; рабочий runtime-путь идет через release artifacts или локально сгенерированный marketplace-пакет, а не через сырой Git/source checkout.

@@ -22,6 +22,7 @@ RELEASE_ARTIFACT_PATHS = {
     "scripts/ci/release-assessment.py",
     "scripts/ci/package-unica-plugin.py",
     "scripts/install-unica.sh",
+    "scripts/install-unica.ps1",
 }
 
 
