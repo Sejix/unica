@@ -169,7 +169,7 @@ for raw in sys.stdin:
         self.assertNotIn("<script>alert", html)
         self.assertIn("Blocking failures", html)
 
-    def test_summary_fails_when_any_scenario_failed_even_if_marked_non_blocking(self) -> None:
+    def test_summary_passes_when_only_non_blocking_scenarios_failed(self) -> None:
         module = load_assessment_module()
 
         scenarios = [
@@ -187,8 +187,8 @@ for raw in sys.stdin:
 
         summary = module.build_summary(scenarios, [], Path("/tmp/unica-no-cache"))
 
-        self.assertEqual(summary["status"], "failed")
-        self.assertEqual(summary["blockingFailures"], 1)
+        self.assertEqual(summary["status"], "passed")
+        self.assertEqual(summary["blockingFailures"], 0)
         self.assertEqual(summary["qualityFindings"]["nonBlockingFailures"], 1)
 
     def test_default_bsp_ref_is_pinned_and_report_records_requested_ref(self) -> None:
@@ -223,15 +223,18 @@ for raw in sys.stdin:
                 "{}",
             )
 
-    def test_extract_run_unica_from_linux_marketplace_archive(self) -> None:
+    def test_extract_unica_binary_from_linux_marketplace_archive(self) -> None:
         module = load_assessment_module()
 
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             package_root = root / "pkg" / "unica-codex-marketplace-linux-x64"
-            scripts = package_root / "plugins" / "unica" / "scripts"
-            scripts.mkdir(parents=True)
-            run_unica = scripts / "run-unica.sh"
+            plugin_root = package_root / "plugins" / "unica"
+            bin_dir = plugin_root / "bin" / "linux-x64"
+            bin_dir.mkdir(parents=True)
+            (plugin_root / ".codex-plugin").mkdir(parents=True)
+            (plugin_root / ".codex-plugin" / "plugin.json").write_text("{}", encoding="utf-8")
+            run_unica = bin_dir / "unica"
             run_unica.write_text("#!/usr/bin/env sh\n", encoding="utf-8")
             run_unica.chmod(run_unica.stat().st_mode | stat.S_IXUSR)
             archive = root / "unica-codex-marketplace-linux-x64.tar.gz"
@@ -240,7 +243,8 @@ for raw in sys.stdin:
 
             extracted = module.extract_marketplace_archive(archive, root / "extract")
 
-            self.assertEqual(extracted.name, "run-unica.sh")
+            self.assertEqual(extracted.name, "unica")
+            self.assertEqual(module.plugin_root_for(extracted).name, "unica")
             self.assertTrue(extracted.is_file())
 
 

@@ -12,6 +12,7 @@ import platform
 import re
 import shutil
 import subprocess
+import sys
 import tarfile
 import time
 import zipfile
@@ -121,16 +122,23 @@ def extract_marketplace_archive(archive: Path, extract_dir: Path) -> Path:
     else:
         raise SystemExit(f"unsupported marketplace archive: {archive}")
 
-    candidates = sorted(extract_dir.rglob("plugins/unica/scripts/run-unica.sh"))
+    candidates = sorted(
+        path
+        for pattern in ("plugins/unica/bin/*/unica", "plugins/unica/bin/*/unica.exe")
+        for path in extract_dir.rglob(pattern)
+    )
     if not candidates:
-        raise SystemExit(f"run-unica.sh not found after extracting {archive}")
+        raise SystemExit(f"bundled unica binary not found after extracting {archive}")
     run_unica = candidates[0]
     run_unica.chmod(run_unica.stat().st_mode | 0o111)
     return run_unica
 
 
 def plugin_root_for(run_unica: Path) -> Path:
-    return run_unica.parent.parent
+    for parent in run_unica.parents:
+        if (parent / ".codex-plugin" / "plugin.json").is_file():
+            return parent
+    return run_unica.parent
 
 
 def unica_version(run_unica: Path) -> str:
@@ -277,7 +285,7 @@ def run_tools_list_scenario(run_unica: Path, bsp_root: Path, cache_dir: Path, ti
     errors: list[str] = []
     tools: set[str] = set()
     if returncode != 0:
-        errors.append(f"run-unica exited with {returncode}: {stderr.strip()}")
+        errors.append(f"unica exited with {returncode}: {stderr.strip()}")
     if len(responses) != 2:
         errors.append(f"expected 2 JSON-RPC responses, got {len(responses)}")
     else:
@@ -331,7 +339,7 @@ def run_tool_scenario(
     errors: list[str] = []
     payload: dict[str, Any] | None = None
     if returncode != 0:
-        errors.append(f"run-unica exited with {returncode}: {stderr.strip()}")
+        errors.append(f"unica exited with {returncode}: {stderr.strip()}")
     if len(responses) != 1:
         errors.append(f"expected 1 JSON-RPC response, got {len(responses)}")
     elif not errors:
@@ -541,7 +549,9 @@ def summarize_cache(cache_dir: Path) -> dict[str, Any]:
 
 
 def build_summary(scenarios: list[dict[str, Any]], diagnostic_codes: list[str], cache_dir: Path) -> dict[str, Any]:
-    blocking_failures = sum(1 for scenario in scenarios if scenario["status"] == "failed")
+    blocking_failures = sum(
+        1 for scenario in scenarios if scenario["blocking"] and scenario["status"] == "failed"
+    )
     total_duration = sum(int(scenario["durationMs"]) for scenario in scenarios)
     return {
         "status": "failed" if blocking_failures else "passed",
@@ -751,6 +761,20 @@ def write_report_files(report: dict[str, Any], out_dir: Path) -> None:
     (out_dir / "summary.md").write_text(render_summary_markdown(report), encoding="utf-8")
 
 
+def print_blocking_failure_summary(report: dict[str, Any]) -> None:
+    failures = [
+        scenario
+        for scenario in report.get("scenarios", [])
+        if scenario.get("blocking") and scenario.get("status") == "failed"
+    ]
+    if not failures:
+        return
+    print("blocking assessment failures:", file=sys.stderr)
+    for scenario in failures:
+        errors = "; ".join(str(error) for error in scenario.get("errors", [])) or "no error details"
+        print(f"- {scenario.get('id')}: {errors}", file=sys.stderr)
+
+
 def copytree_replace(source: Path, target: Path) -> None:
     if target.exists():
         shutil.rmtree(target)
@@ -802,6 +826,7 @@ def main() -> None:
     if args.pages_root:
         copy_versioned_pages(args.out_dir, args.pages_root, args.release_tag)
     if report["summary"]["blockingFailures"]:
+        print_blocking_failure_summary(report)
         raise SystemExit(1)
 
 

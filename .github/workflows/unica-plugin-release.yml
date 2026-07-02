@@ -87,9 +87,6 @@ jobs:
           python -m json.tool plugins/unica/third-party/tools.lock.json >/dev/null
           python -m json.tool plugins/unica/third-party/manifest.json >/dev/null
 
-      - name: Check shell launchers
-        run: bash -n plugins/unica/scripts/*.sh
-
       - name: Check Rust formatting
         run: cargo fmt --all -- --check
 
@@ -226,6 +223,7 @@ jobs:
           --github-run-id "${{ github.run_id }}"
 
       - uses: actions/upload-artifact@v4
+        if: always()
         with:
           name: unica-release-assessment
           path: dist/release-assessment
