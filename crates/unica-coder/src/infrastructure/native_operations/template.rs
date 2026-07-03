@@ -603,13 +603,9 @@ mod tests {
     #[test]
     fn fresh_uuid_generates_uuid_v4() {
         let value = fresh_uuid();
+        let uuid = uuid::Uuid::parse_str(&value).expect(&value);
 
-        assert!(is_valid_uuid(&value), "{value}");
-        assert!(!value.starts_with("00000000-0000-0000-"), "{value}");
-        assert_eq!(value.as_bytes()[14], b'4', "{value}");
-        assert!(
-            matches!(value.as_bytes()[19], b'8' | b'9' | b'a' | b'b'),
-            "{value}"
-        );
+        assert!(!uuid.is_nil(), "{value}");
+        assert_eq!(uuid.get_version(), Some(uuid::Version::Random), "{value}");
     }
 }
