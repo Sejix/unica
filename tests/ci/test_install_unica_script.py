@@ -59,14 +59,20 @@ class InstallUnicaScriptTests(unittest.TestCase):
         env.pop("HOME", None)
         env.pop("USERPROFILE", None)
 
-        result = run_script("--target", "win-x64", "--print-download-url", env=env)
+        result = run_script("--target", "linux-x64", "--print-download-url", env=env)
 
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(
             result.stdout.strip(),
             "https://github.com/IngvarConsulting/unica/releases/latest/download/"
-            "unica-codex-marketplace-win-x64.zip",
+            "unica-codex-marketplace-linux-x64.tar.gz",
         )
+
+    def test_shell_installer_rejects_windows_target(self) -> None:
+        result = run_script("--target", "win-x64", "--print-download-url")
+
+        self.assertEqual(result.returncode, 78)
+        self.assertIn("Unsupported Unica release target: win-x64", result.stderr)
 
 
 class InstallUnicaPowerShellScriptTests(unittest.TestCase):
@@ -85,35 +91,13 @@ class InstallUnicaPowerShellScriptTests(unittest.TestCase):
         self.assertNotIn("pwsh", text.lower())
         self.assertNotIn("bash", text.lower())
 
-    def test_windows_installer_rewrites_installed_mcp_commands(self) -> None:
+    def test_windows_installer_does_not_rewrite_packaged_mcp_commands(self) -> None:
         text = PS_SCRIPT.read_text(encoding="utf-8")
 
-        self.assertIn("function Update-UnicaMcpJson", text)
-        self.assertIn("ConvertFrom-Json", text)
-        self.assertIn("ConvertTo-Json -Depth 20", text)
-        self.assertIn("$mcp.mcpServers.unica.command = $Command", text)
-        self.assertIn("$mcp.mcpServers.unica.args = @()", text)
-        self.assertIn("[System.Text.Encoding]::UTF8", text)
-        self.assertIn('[string]$PluginDir = ""', text)
-        self.assertIn("return [System.IO.Path]::GetFullPath($toolPath)", text)
-
-        self.assertIn(
-            '$marketplaceMcpPath = Join-Path $marketplaceDir '
-            '(Join-Path "plugins" (Join-Path "unica" ".mcp.json"))',
-            text,
-        )
-        self.assertIn(
-            "Update-UnicaMcpJson -McpPath $marketplaceMcpPath -Command "
-            '(Get-ToolBinary -MarketplaceDir $marketplaceDir -Target $Target -Tool "unica")',
-            text,
-        )
-        self.assertIn('$pluginCacheMcpPath = Join-Path $pluginCacheVersionDir ".mcp.json"', text)
-        self.assertIn(
-            "Update-UnicaMcpJson -McpPath $pluginCacheMcpPath -Command "
-            '(Get-ToolBinary -PluginDir $pluginCacheVersionDir -Target $Target -Tool "unica")',
-            text,
-        )
-        self.assertEqual(text.count("Update-UnicaMcpJson -McpPath"), 2)
+        self.assertNotIn("function Update-UnicaMcpJson", text)
+        self.assertNotIn("Update-UnicaMcpJson -McpPath", text)
+        self.assertNotIn("$mcp.mcpServers.unica.command", text)
+        self.assertNotIn("$mcp.mcpServers.unica.args", text)
 
     @unittest.skipIf(os.name != "nt", "PowerShell syntax check runs on Windows")
     def test_windows_installer_print_download_url_runs_in_powershell(self) -> None:
