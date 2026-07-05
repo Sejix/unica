@@ -285,6 +285,37 @@ mod edit_tests {
     }
 
     #[test]
+    fn edit_meta_adds_tabular_attribute_to_bom_xml_with_cyrillic_section() {
+        let context = temp_context("add-bom-cyrillic-tabular-section-attribute");
+        let object_path = context.cwd.join("Documents").join("SamplePackingList.xml");
+        let mut xml = sample_document_xml("<RegisterRecords/>");
+        xml = xml.replace(
+            "\t\t<ChildObjects/>",
+            "\t\t<ChildObjects>\n\t\t\t<TabularSection uuid=\"22222222-2222-4222-8222-222222222222\">\n\t\t\t\t<Properties>\n\t\t\t\t\t<Name>Товары</Name>\n\t\t\t\t\t<Synonym/>\n\t\t\t\t\t<Comment/>\n\t\t\t\t\t<ToolTip/>\n\t\t\t\t\t<FillChecking>DontCheck</FillChecking>\n\t\t\t\t</Properties>\n\t\t\t\t<ChildObjects>\n\t\t\t\t\t<Attribute uuid=\"33333333-3333-4333-8333-333333333333\">\n\t\t\t\t\t\t<Properties>\n\t\t\t\t\t\t\t<Name>Номенклатура</Name>\n\t\t\t\t\t\t\t<Synonym/>\n\t\t\t\t\t\t\t<Comment/>\n\t\t\t\t\t\t\t<Type/>\n\t\t\t\t\t\t</Properties>\n\t\t\t\t\t</Attribute>\n\t\t\t\t</ChildObjects>\n\t\t\t</TabularSection>\n\t\t</ChildObjects>",
+        );
+        write_file(&object_path, &format!("\u{feff}{xml}"));
+
+        let outcome = edit_meta(
+            &meta_edit_args(
+                &object_path,
+                "add-ts-attribute",
+                "Товары.кшРеализация: DocumentRef.РеализацияТоваровУслуг",
+            ),
+            &context,
+        );
+        let stdout = outcome.stdout.as_deref().unwrap_or("");
+        assert!(outcome.ok, "{stdout}\n{:?}", outcome.errors);
+
+        let updated = fs::read_to_string(&object_path).unwrap();
+        assert!(updated.starts_with('\u{feff}'));
+        assert!(updated.contains("<Name>Номенклатура</Name>"));
+        assert!(updated.contains("<Name>кшРеализация</Name>"));
+        Document::parse(updated.trim_start_matches('\u{feff}')).unwrap();
+
+        let _ = fs::remove_dir_all(&context.cwd);
+    }
+
+    #[test]
     fn edit_meta_add_tabular_attribute_reports_missing_target() {
         let context = temp_context("missing-tabular-section");
         let object_path = context.cwd.join("Documents").join("SamplePackingList.xml");
@@ -8410,6 +8441,9 @@ pub(crate) fn edit_meta(args: &Map<String, Value>, context: &WorkspaceContext) -
 
         let mut xml_text = fs::read_to_string(&object_path)
             .map_err(|err| format!("failed to read {}: {err}", object_path.display()))?;
+        if xml_text.starts_with('\u{feff}') {
+            xml_text = xml_text.trim_start_matches('\u{feff}').to_string();
+        }
         let (object_type, object_name) = meta_edit_object_identity(&xml_text)?;
 
         let mut added = 0usize;
