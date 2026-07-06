@@ -8107,11 +8107,27 @@ fn register_compiled_meta_child_text(
     let close = "</ChildObjects>";
     let index = xml_text.find(close)?;
     let line_start = xml_text[..index].rfind('\n').map_or(0, |pos| pos + 1);
-    let closing_indent = &xml_text[line_start..index];
+    let before_close_on_line = &xml_text[line_start..index];
+    let closing_indent = if before_close_on_line.chars().all(|ch| ch == '\t' || ch == ' ') {
+        before_close_on_line
+    } else {
+        let open_index = xml_text[..index].rfind("<ChildObjects")?;
+        let open_line_start = xml_text[..open_index].rfind('\n').map_or(0, |pos| pos + 1);
+        let open_indent = &xml_text[open_line_start..open_index];
+        if open_indent.chars().all(|ch| ch == '\t' || ch == ' ') {
+            open_indent
+        } else {
+            ""
+        }
+    };
     let insertion = format!("<{child_tag}>{obj_name}</{child_tag}>");
     let mut result =
         String::with_capacity(xml_text.len() + 1 + insertion.len() + 1 + closing_indent.len());
     result.push_str(&xml_text[..index]);
+    if !before_close_on_line.chars().all(|ch| ch == '\t' || ch == ' ') {
+        result.push('\n');
+        result.push_str(closing_indent);
+    }
     result.push('\t');
     result.push_str(&insertion);
     result.push('\n');

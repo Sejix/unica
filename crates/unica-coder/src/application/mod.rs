@@ -1797,8 +1797,9 @@ mod tests {
         assert!(result.ok, "{:?}", result.errors);
         let config_bytes = std::fs::read(&config_path).unwrap();
         assert_eq!(leading_utf8_bom_count(&config_bytes), 1);
-        assert!(String::from_utf8_lossy(&config_bytes)
-            .contains("<Report>MetaCompileBomReport</Report>"));
+        let config_text = String::from_utf8_lossy(&config_bytes).to_string();
+        assert!(config_text.contains("<Report>MetaCompileBomReport</Report>"));
+        roxmltree::Document::parse(config_text.trim_start_matches('\u{feff}')).unwrap();
 
         let _ = std::fs::remove_dir_all(root);
     }
