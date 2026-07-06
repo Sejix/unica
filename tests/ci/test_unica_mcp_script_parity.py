@@ -393,6 +393,81 @@ SUCCESS_SCENARIOS = [
         expect_ok=True,
     ),
     ParityScenario(
+        name="bsp-cfe-diff-borrowed-catalog-mode-a",
+        tool="unica.cfe.diff",
+        skill="cfe-diff",
+        script="cfe-diff.py",
+        arguments={
+            "ExtensionPath": "src-cfe",
+            "ConfigPath": "src",
+            "Mode": "A",
+        },
+        setup_steps=(
+            SetupStep(
+                skill="cfe-init",
+                script="cfe-init.py",
+                tool="unica.cfe.init",
+                arguments={
+                    "Name": "ParityExtension",
+                    "Synonym": "Parity extension",
+                    "NamePrefix": "PE_",
+                    "OutputDir": "src-cfe",
+                    "Purpose": "Customization",
+                    "Version": "1.0.0.1",
+                    "Vendor": "Unica",
+                    "CompatibilityMode": "Version8_3_24",
+                    "NoRole": True,
+                },
+            ),
+            SetupStep(
+                skill="cfe-borrow",
+                script="cfe-borrow.py",
+                tool="unica.cfe.borrow",
+                arguments={
+                    "ExtensionPath": "src-cfe",
+                    "ConfigPath": "src",
+                    "Object": "Catalog.Валюты",
+                },
+            ),
+        ),
+        fixtures=(
+            FileFixture(BSP_CF_CONFIGURATION_FIXTURE, "src/Configuration.xml"),
+            FileFixture(BSP_META_CATALOG_FIXTURE, "src/Catalogs/Валюты.xml"),
+        ),
+        expect_ok=True,
+    ),
+    ParityScenario(
+        name="bsp-cfe-diff-transfer-check-mode-b",
+        tool="unica.cfe.diff",
+        skill="cfe-diff",
+        script="cfe-diff.py",
+        arguments={
+            "ExtensionPath": "src-cfe",
+            "ConfigPath": "src",
+            "Mode": "B",
+        },
+        fixtures=(
+            FileFixture(BSP_CF_CONFIGURATION_FIXTURE, "src/Configuration.xml"),
+            FileFixture(
+                "cfe-diff/mode-b/src/Catalogs/Валюты/Ext/ObjectModule.bsl",
+                "src/Catalogs/Валюты/Ext/ObjectModule.bsl",
+            ),
+            FileFixture(
+                "cfe-diff/mode-b/src-cfe/Configuration.xml",
+                "src-cfe/Configuration.xml",
+            ),
+            FileFixture(
+                "cfe-diff/mode-b/src-cfe/Catalogs/Валюты.xml",
+                "src-cfe/Catalogs/Валюты.xml",
+            ),
+            FileFixture(
+                "cfe-diff/mode-b/src-cfe/Catalogs/Валюты/Ext/ObjectModule.bsl",
+                "src-cfe/Catalogs/Валюты/Ext/ObjectModule.bsl",
+            ),
+        ),
+        expect_ok=True,
+    ),
+    ParityScenario(
         name="cf-info-overview-outfile",
         tool="unica.cf.info",
         skill="cf-info",
