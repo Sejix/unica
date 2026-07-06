@@ -13,6 +13,7 @@ const NATIVE_XML_DSL_ARGS: &[&str] = &[
     "Batch",
     "BodyLimit",
     "BorrowMainAttribute",
+    "Capability",
     "Child",
     "Children",
     "CIPath",
@@ -24,6 +25,7 @@ const NATIVE_XML_DSL_ARGS: &[&str] = &[
     "ConfigPath",
     "Context",
     "CreateIfMissing",
+    "DataSet",
     "DataPath",
     "DefinitionFile",
     "Detailed",
@@ -35,7 +37,6 @@ const NATIVE_XML_DSL_ARGS: &[&str] = &[
     "FormName",
     "FormPath",
     "Format",
-    "FromObject",
     "InterceptorType",
     "JsonPath",
     "KeepFiles",
@@ -52,6 +53,7 @@ const NATIVE_XML_DSL_ARGS: &[&str] = &[
     "ModulePath",
     "Name",
     "NamePrefix",
+    "NoSelection",
     "NoRole",
     "NoValidate",
     "Object",
@@ -69,6 +71,7 @@ const NATIVE_XML_DSL_ARGS: &[&str] = &[
     "RightsPath",
     "Raw",
     "Section",
+    "Set",
     "SetDefault",
     "SetMainSKD",
     "ShowDenied",
@@ -78,8 +81,10 @@ const NATIVE_XML_DSL_ARGS: &[&str] = &[
     "TemplateName",
     "TemplatePath",
     "TemplateType",
+    "TargetPath",
     "Type",
     "Value",
+    "Variant",
     "Vendor",
     "Version",
     "WithText",
@@ -87,6 +92,7 @@ const NATIVE_XML_DSL_ARGS: &[&str] = &[
     "batch",
     "bodyLimit",
     "borrowMainAttribute",
+    "capability",
     "child",
     "children",
     "ciPath",
@@ -98,6 +104,7 @@ const NATIVE_XML_DSL_ARGS: &[&str] = &[
     "configPath",
     "context",
     "createIfMissing",
+    "dataSet",
     "dataPath",
     "definitionFile",
     "detailed",
@@ -109,7 +116,6 @@ const NATIVE_XML_DSL_ARGS: &[&str] = &[
     "formName",
     "formPath",
     "format",
-    "fromObject",
     "interceptorType",
     "jsonPath",
     "keepFiles",
@@ -126,6 +132,7 @@ const NATIVE_XML_DSL_ARGS: &[&str] = &[
     "modulePath",
     "name",
     "namePrefix",
+    "noSelection",
     "noRole",
     "noValidate",
     "object",
@@ -143,6 +150,7 @@ const NATIVE_XML_DSL_ARGS: &[&str] = &[
     "rightsPath",
     "raw",
     "section",
+    "set",
     "setDefault",
     "setMainSKD",
     "showDenied",
@@ -152,8 +160,10 @@ const NATIVE_XML_DSL_ARGS: &[&str] = &[
     "templateName",
     "templatePath",
     "templateType",
+    "targetPath",
     "type",
     "value",
+    "variant",
     "vendor",
     "version",
     "withText",
@@ -360,6 +370,7 @@ pub fn validate_tool_arguments(
         validate_runtime_arguments(tool.name, args, dry_run)?;
     }
     validate_code_arguments(tool, args, dry_run)?;
+    validate_support_arguments(tool, args, dry_run)?;
 
     if !dry_run {
         for required in required_args(&tool) {
@@ -369,6 +380,99 @@ pub fn validate_tool_arguments(
         }
     }
 
+    Ok(())
+}
+
+fn validate_support_arguments(
+    tool: ToolSpec,
+    args: &Map<String, Value>,
+    dry_run: bool,
+) -> Result<(), String> {
+    if tool.name != "unica.support.edit" {
+        return Ok(());
+    }
+
+    validate_unique_alias_group(tool.name, args, &["Capability", "capability"])?;
+    validate_unique_alias_group(tool.name, args, &["Set", "set"])?;
+    validate_unique_alias_group(
+        tool.name,
+        args,
+        &["Path", "path", "TargetPath", "targetPath"],
+    )?;
+    validate_enum_alias_argument(
+        tool.name,
+        args,
+        &["Capability", "capability"],
+        &["on", "off"],
+    )?;
+    validate_enum_alias_argument(
+        tool.name,
+        args,
+        &["Set", "set"],
+        &["editable", "off-support", "locked"],
+    )?;
+
+    if dry_run {
+        return Ok(());
+    }
+
+    if !contains_any(args, &["Path", "path", "TargetPath", "targetPath"]) {
+        return Err(format!("{} requires `Path` argument", tool.name));
+    }
+    let has_capability = contains_any(args, &["Capability", "capability"]);
+    let has_set = contains_any(args, &["Set", "set"]);
+    if has_capability == has_set {
+        return Err(format!(
+            "{} requires exactly one of `Capability` or `Set`",
+            tool.name
+        ));
+    }
+
+    Ok(())
+}
+
+fn contains_any(args: &Map<String, Value>, names: &[&str]) -> bool {
+    names.iter().any(|name| args.contains_key(*name))
+}
+
+fn validate_unique_alias_group(
+    tool_name: &str,
+    args: &Map<String, Value>,
+    names: &[&str],
+) -> Result<(), String> {
+    let present = names
+        .iter()
+        .copied()
+        .filter(|name| args.contains_key(*name))
+        .collect::<Vec<_>>();
+    if present.len() > 1 {
+        return Err(format!(
+            "{tool_name} received conflicting aliases: {}",
+            present.join(", ")
+        ));
+    }
+    Ok(())
+}
+
+fn validate_enum_alias_argument(
+    tool_name: &'static str,
+    args: &Map<String, Value>,
+    names: &[&str],
+    allowed: &[&str],
+) -> Result<(), String> {
+    for name in names {
+        if let Some(value) = args.get(*name) {
+            let Some(value) = value.as_str() else {
+                return Err(format!("{tool_name} argument `{name}` must be string"));
+            };
+            if !allowed.contains(&value) {
+                return Err(format!(
+                    "{tool_name} argument `{name}` must be one of: {}",
+                    allowed.join(", ")
+                ));
+            }
+        }
+    }
     Ok(())
 }
 
@@ -581,6 +685,7 @@ fn write_path_args(tool: ToolSpec) -> &'static [&'static str] {
         ToolHandler::NativeOperation { operation, .. } => match operation {
             "cf-init" | "cfe-init" => &["OutputDir", "outputDir"],
             "cf-edit" => &["ConfigPath", "configPath", "Path", "path"],
+            "support-edit" => &["Path", "path", "TargetPath", "targetPath"],
             "meta-compile" => &["OutputDir", "outputDir"],
             "meta-edit" => &["ObjectPath", "objectPath", "Path", "path"],
             "meta-remove" => &["ConfigDir", "configDir"],
@@ -599,15 +704,6 @@ fn write_path_args(tool: ToolSpec) -> &'static [&'static str] {
             "cfe-borrow" | "cfe-patch-method" => &["ExtensionPath", "extensionPath"],
             _ => &[],
         },
-        ToolHandler::LegacyScript { skill, .. } => match skill {
-            "form-add" => &["ObjectPath", "objectPath"],
-            "form-compile" => &["OutputPath", "outputPath"],
-            "form-edit" => &["FormPath", "formPath"],
-            "form-remove" => &["SrcDir", "srcDir"],
-            "skd-compile" => &["OutputPath", "outputPath"],
-            "skd-edit" => &["TemplatePath", "templatePath"],
-            _ => &[],
-        },
         ToolHandler::RuntimeAdapter => &["config", "path", "output", "settings", "mcpConfig"],
         _ => &[],
     }
@@ -615,22 +711,6 @@ fn write_path_args(tool: ToolSpec) -> &'static [&'static str] {
 
 fn is_native_xml_tool(tool: ToolSpec) -> bool {
     matches!(tool.handler, ToolHandler::NativeOperation { .. })
-        || matches!(
-            tool.handler,
-            ToolHandler::LegacyScript {
-                skill: "form-add"
-                    | "form-compile"
-                    | "form-edit"
-                    | "form-info"
-                    | "form-remove"
-                    | "form-validate"
-                    | "skd-compile"
-                    | "skd-edit"
-                    | "skd-info"
-                    | "skd-validate",
-                ..
-            }
-        )
 }
 
 fn native_source_path_args() -> &'static [&'static str] {
@@ -653,6 +733,7 @@ fn native_source_path_args() -> &'static [&'static str] {
         "SrcDir",
         "SubsystemPath",
         "TemplatePath",
+        "TargetPath",
         "ciPath",
         "configDir",
         "configPath",
@@ -671,6 +752,7 @@ fn native_source_path_args() -> &'static [&'static str] {
         "srcDir",
         "subsystemPath",
         "templatePath",
+        "targetPath",
     ]
 }
 
@@ -708,7 +790,6 @@ fn allowed_args(tool: &ToolSpec) -> Vec<&'static str> {
         ToolHandler::CodeAdapter { .. } => names.extend(code_args_for(tool.name)),
         ToolHandler::StandardsAdapter { .. } => names.extend(STANDARDS_ARGS),
         ToolHandler::ProjectStatus | ToolHandler::ProjectMap => {}
-        ToolHandler::LegacyScript { .. } => names.extend(NATIVE_XML_DSL_ARGS),
     }
     names.sort_unstable();
     names.dedup();
@@ -733,11 +814,6 @@ fn required_args(tool: &ToolSpec) -> Vec<&'static str> {
             "skd-info" | "skd-validate" | "skd-edit" => vec!["TemplatePath"],
             "mxl-info" | "mxl-validate" | "mxl-decompile" => vec!["TemplatePath"],
             "role-info" | "role-validate" => vec!["RightsPath"],
-            _ => Vec::new(),
-        },
-        ToolHandler::LegacyScript { skill, .. } => match skill {
-            "form-info" | "form-validate" | "form-edit" => vec!["FormPath"],
-            "skd-info" | "skd-validate" | "skd-edit" => vec!["TemplatePath"],
             _ => Vec::new(),
         },
         ToolHandler::StandardsAdapter {
@@ -858,6 +934,15 @@ fn property_schema_for_tool(tool: &ToolSpec, name: &str) -> Value {
         }
     }
     match tool.name {
+        "unica.support.edit" => match name {
+            "Capability" | "capability" => {
+                return json!({ "type": "string", "enum": ["on", "off"] });
+            }
+            "Set" | "set" => {
+                return json!({ "type": "string", "enum": ["editable", "off-support", "locked"] });
+            }
+            _ => {}
+        },
         "unica.code.graph" => match name {
             "mode" => return json!({ "type": "string", "enum": CODE_GRAPH_MODES }),
             "dir" => return json!({ "type": "string", "enum": CODE_GRAPH_DIRECTIONS }),
@@ -990,6 +1075,67 @@ mod tests {
         let args = Map::new();
 
         validate_tool_arguments(tool, &args, true).unwrap();
+    }
+
+    #[test]
+    fn support_edit_contract_exposes_typed_enums_and_rejects_invalid_payloads() {
+        let tool = tools()
+            .into_iter()
+            .find(|tool| tool.name == "unica.support.edit")
+            .unwrap();
+
+        let schema = input_schema_for_tool(&tool);
+        assert_eq!(schema["additionalProperties"], false);
+        assert_eq!(
+            schema["properties"]["Capability"]["enum"],
+            json!(["on", "off"])
+        );
+        assert_eq!(
+            schema["properties"]["Set"]["enum"],
+            json!(["editable", "off-support", "locked"])
+        );
+        assert!(schema["properties"].get("args").is_none());
+
+        let mut args = Map::new();
+        args.insert("Path".to_string(), json!("src"));
+        args.insert("Capability".to_string(), json!(true));
+        let error = validate_tool_arguments(tool, &args, false).unwrap_err();
+        assert!(error.contains("Capability"));
+        assert!(error.contains("string"));
+
+        let mut args = Map::new();
+        args.insert("Path".to_string(), json!("src"));
+        args.insert("Capability".to_string(), json!("on"));
+        args.insert("Set".to_string(), json!("editable"));
+        let error = validate_tool_arguments(tool, &args, false).unwrap_err();
+        assert!(error.contains("exactly one"));
+
+        let mut args = Map::new();
+        args.insert("Path".to_string(), json!("src"));
+        args.insert("Capability".to_string(), json!("on"));
+        args.insert("capability".to_string(), json!("off"));
+        let error = validate_tool_arguments(tool, &args, false).unwrap_err();
+        assert!(error.contains("conflicting aliases"));
+        assert!(error.contains("Capability"));
+        assert!(error.contains("capability"));
+
+        let mut args = Map::new();
+        args.insert("Path".to_string(), json!("src"));
+        args.insert("Set".to_string(), json!("editable"));
+        args.insert("set".to_string(), json!("locked"));
+        let error = validate_tool_arguments(tool, &args, false).unwrap_err();
+        assert!(error.contains("conflicting aliases"));
+        assert!(error.contains("Set"));
+        assert!(error.contains("set"));
+
+        let mut args = Map::new();
+        args.insert("Path".to_string(), json!("src"));
+        args.insert("TargetPath".to_string(), json!("src/Catalogs/Items.xml"));
+        args.insert("Capability".to_string(), json!("on"));
+        let error = validate_tool_arguments(tool, &args, false).unwrap_err();
+        assert!(error.contains("conflicting aliases"));
+        assert!(error.contains("Path"));
+        assert!(error.contains("TargetPath"));
     }
 
     #[test]

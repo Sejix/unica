@@ -6,7 +6,6 @@ use crate::infrastructure::internal_adapters::{
     BslAnalyzerMcpAdapter, CliAdapter, CodeNavigationAdapter, CodeSearchAdapter, RuntimeAdapter,
     StandardsAdapter,
 };
-use crate::infrastructure::legacy_scripts::LegacyScriptAdapter;
 use crate::infrastructure::native_operations::common::{
     absolutize, path_arg, required_string, support_guard_violation, SupportGuardRequirement,
     SupportGuardViolation,
@@ -34,11 +33,6 @@ pub struct ToolSpec {
 
 #[derive(Debug, Clone, Copy)]
 pub enum ToolHandler {
-    LegacyScript {
-        skill: &'static str,
-        script: &'static str,
-        event: Option<DomainEventKind>,
-    },
     NativeOperation {
         operation: &'static str,
         event: Option<DomainEventKind>,
@@ -332,15 +326,6 @@ fn call_tool(spec: ToolSpec, args: &Map<String, Value>) -> Result<OperationResul
     };
 
     let mut outcome = match spec.handler {
-        ToolHandler::LegacyScript { skill, script, .. } => LegacyScriptAdapter::invoke(
-            skill,
-            script,
-            spec.name,
-            args,
-            &context,
-            dry_run,
-            spec.mutating,
-        )?,
         ToolHandler::NativeOperation { operation, .. } => NativeOperationAdapter::invoke(
             operation,
             spec.name,
@@ -517,7 +502,6 @@ fn support_guard_target(
 fn support_guard_operation(spec: ToolSpec) -> Option<&'static str> {
     match spec.handler {
         ToolHandler::NativeOperation { operation, .. } => Some(operation),
-        ToolHandler::LegacyScript { skill, .. } => Some(skill),
         _ => None,
     }
 }
@@ -702,9 +686,6 @@ fn support_guard_blocked_outcome(
 
 fn domain_events(spec: ToolSpec, args: &Map<String, Value>) -> Vec<DomainEvent> {
     match spec.handler {
-        ToolHandler::LegacyScript {
-            event: Some(event), ..
-        } => vec![DomainEvent::new(event, spec.name)],
         ToolHandler::NativeOperation {
             event: Some(event), ..
         } => vec![DomainEvent::new(event, spec.name)],
@@ -839,6 +820,16 @@ fn configuration_tools() -> Vec<ToolSpec> {
             },
         },
         ToolSpec {
+            name: "unica.support.edit",
+            description: "Toggle 1C vendor support editing capability or per-object support rule.",
+            mutating: true,
+            cache_access: cache_access_for("support-edit", Some(DomainEventKind::ConfigXmlChanged)),
+            handler: ToolHandler::NativeOperation {
+                operation: "support-edit",
+                event: Some(DomainEventKind::ConfigXmlChanged),
+            },
+        },
+        ToolSpec {
             name: "unica.cfe.borrow",
             description: "Borrow configuration objects/forms into an extension.",
             mutating: true,
@@ -968,9 +959,8 @@ fn configuration_tools() -> Vec<ToolSpec> {
             description: "Add managed form metadata and files.",
             mutating: true,
             cache_access: cache_access_for("form-add", Some(DomainEventKind::FormChanged)),
-            handler: ToolHandler::LegacyScript {
-                skill: "form-add",
-                script: "form-add.py",
+            handler: ToolHandler::NativeOperation {
+                operation: "form-add",
                 event: Some(DomainEventKind::FormChanged),
             },
         },
@@ -979,9 +969,8 @@ fn configuration_tools() -> Vec<ToolSpec> {
             description: "Compile managed Form.xml from JSON DSL or metadata.",
             mutating: true,
             cache_access: cache_access_for("form-compile", Some(DomainEventKind::FormChanged)),
-            handler: ToolHandler::LegacyScript {
-                skill: "form-compile",
-                script: "form-compile.py",
+            handler: ToolHandler::NativeOperation {
+                operation: "form-compile",
                 event: Some(DomainEventKind::FormChanged),
             },
         },
@@ -1010,9 +999,8 @@ fn configuration_tools() -> Vec<ToolSpec> {
             description: "Remove a managed form and registration.",
             mutating: true,
             cache_access: cache_access_for("form-remove", Some(DomainEventKind::FormChanged)),
-            handler: ToolHandler::LegacyScript {
-                skill: "form-remove",
-                script: "remove-form.py",
+            handler: ToolHandler::NativeOperation {
+                operation: "form-remove",
                 event: Some(DomainEventKind::FormChanged),
             },
         },
@@ -1021,9 +1009,8 @@ fn configuration_tools() -> Vec<ToolSpec> {
             description: "Validate managed Form.xml.",
             mutating: false,
             cache_access: cache_access_for("form-validate", None),
-            handler: ToolHandler::LegacyScript {
-                skill: "form-validate",
-                script: "form-validate.py",
+            handler: ToolHandler::NativeOperation {
+                operation: "form-validate",
                 event: None,
             },
         },
@@ -1124,9 +1111,8 @@ fn configuration_tools() -> Vec<ToolSpec> {
             description: "Compile Data Composition Schema XML from JSON DSL.",
             mutating: true,
             cache_access: cache_access_for("skd-compile", Some(DomainEventKind::SkdChanged)),
-            handler: ToolHandler::LegacyScript {
-                skill: "skd-compile",
-                script: "skd-compile.py",
+            handler: ToolHandler::NativeOperation {
+                operation: "skd-compile",
                 event: Some(DomainEventKind::SkdChanged),
             },
         },
@@ -1135,9 +1121,8 @@ fn configuration_tools() -> Vec<ToolSpec> {
             description: "Edit Data Composition Schema Template.xml.",
             mutating: true,
             cache_access: cache_access_for("skd-edit", Some(DomainEventKind::SkdChanged)),
-            handler: ToolHandler::LegacyScript {
-                skill: "skd-edit",
-                script: "skd-edit.py",
+            handler: ToolHandler::NativeOperation {
+                operation: "skd-edit",
                 event: Some(DomainEventKind::SkdChanged),
             },
         },
@@ -1156,9 +1141,8 @@ fn configuration_tools() -> Vec<ToolSpec> {
             description: "Validate Data Composition Schema Template.xml.",
             mutating: false,
             cache_access: cache_access_for("skd-validate", None),
-            handler: ToolHandler::LegacyScript {
-                skill: "skd-validate",
-                script: "skd-validate.py",
+            handler: ToolHandler::NativeOperation {
+                operation: "skd-validate",
                 event: None,
             },
         },
@@ -1283,7 +1267,6 @@ fn cache_access_for(operation: &str, event: Option<DomainEventKind>) -> CacheAcc
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::infrastructure::legacy_scripts::legacy_script_path;
     use serde_json::Map;
     use std::collections::HashSet;
 
@@ -1296,6 +1279,7 @@ mod tests {
         assert!(names.contains(&"unica.skd.edit"));
         assert!(names.contains(&"unica.mxl.compile"));
         assert!(names.contains(&"unica.role.validate"));
+        assert!(names.contains(&"unica.support.edit"));
         assert!(names.contains(&"unica.build.load"));
         assert!(names.contains(&"unica.runtime.execute"));
         assert!(names.contains(&"unica.code.definition"));
@@ -1314,10 +1298,7 @@ mod tests {
             .unwrap();
         assert!(result.ok);
         assert!(result.summary.contains("dry run"));
-        assert!(
-            result.command.is_none(),
-            "native dry run should not preview a legacy script command"
-        );
+        assert_eq!(result.command, None);
         assert_eq!(result.cache.mode, "dry-run");
         assert!(result.cache.events.contains(&"FormChanged".to_string()));
         assert!(result
@@ -1361,7 +1342,7 @@ mod tests {
     }
 
     #[test]
-    fn xml_dsl_tools_route_to_existing_script_or_parity_covered_native_handler() {
+    fn xml_dsl_tools_route_to_parity_covered_native_handlers() {
         const PARITY_COVERED_TOOLS: &[&str] = &[
             "unica.cf.edit",
             "unica.cf.info",
@@ -1404,6 +1385,7 @@ mod tests {
             "unica.role.info",
             "unica.role.validate",
         ];
+        const REPO_OWNED_NATIVE_TOOLS: &[&str] = &["unica.support.edit"];
 
         for tool in tools() {
             if !tool.name.starts_with("unica.cf.")
@@ -1417,6 +1399,7 @@ mod tests {
                 && !tool.name.starts_with("unica.skd.")
                 && !tool.name.starts_with("unica.mxl.")
                 && !tool.name.starts_with("unica.role.")
+                && !tool.name.starts_with("unica.support.")
             {
                 continue;
             }
@@ -1425,23 +1408,11 @@ mod tests {
             }
 
             match tool.handler {
-                ToolHandler::LegacyScript { skill, script, .. } => {
-                    let plugin_root = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-                        .join("../..")
-                        .join("plugins")
-                        .join("unica");
-                    let script_path = legacy_script_path(&plugin_root, skill, script);
-                    assert!(
-                        script_path.is_file(),
-                        "{} routes to missing transitional script {}",
-                        tool.name,
-                        script_path.display()
-                    );
-                }
                 ToolHandler::NativeOperation { operation, .. } => {
                     assert!(
-                        PARITY_COVERED_TOOLS.contains(&tool.name),
-                        "{} routes to native operation {} without a parity fixture proving script-equivalent behavior",
+                        PARITY_COVERED_TOOLS.contains(&tool.name)
+                            || REPO_OWNED_NATIVE_TOOLS.contains(&tool.name),
+                        "{} routes to native operation {} without a parity fixture or repo-owned native contract exception",
                         tool.name,
                         operation
                     );
@@ -1452,113 +1423,89 @@ mod tests {
     }
 
     #[test]
-    fn skd_transitional_tools_route_through_hidden_legacy_scripts_for_full_donor_contract() {
-        let expected = [
-            ("unica.skd.compile", "skd-compile", "skd-compile.py"),
-            ("unica.skd.edit", "skd-edit", "skd-edit.py"),
-            ("unica.skd.validate", "skd-validate", "skd-validate.py"),
-        ];
-        for (tool_name, expected_skill, expected_script) in expected {
-            let tool = tools()
-                .into_iter()
-                .find(|tool| tool.name == tool_name)
-                .expect("SKD tool exists");
-            match tool.handler {
-                ToolHandler::LegacyScript { skill, script, .. } => {
-                    assert_eq!(skill, expected_skill);
-                    assert_eq!(script, expected_script);
-                    let plugin_root = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-                        .join("../..")
-                        .join("plugins")
-                        .join("unica");
-                    let hidden_script = legacy_script_path(&plugin_root, skill, script);
-                    assert!(
-                        hidden_script.is_file(),
-                        "{tool_name} routes to missing hidden script {}",
-                        hidden_script.display()
-                    );
-                    let prompt_visible_script = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-                        .join("../..")
-                        .join("plugins")
-                        .join("unica")
-                        .join("skills")
-                        .join(skill)
-                        .join("scripts")
-                        .join(script);
-                    assert!(
-                        !prompt_visible_script.exists(),
-                        "{tool_name} must not ship skill-local operation script {}",
-                        prompt_visible_script.display()
-                    );
-                }
-                other => {
-                    panic!("{tool_name} should route through hidden legacy script, got {other:?}")
-                }
+    fn mutating_native_tools_have_registered_mutation_handlers() {
+        let args = Map::new();
+        for tool in tools() {
+            if !tool.mutating {
+                continue;
             }
+            let ToolHandler::NativeOperation { operation, .. } = tool.handler else {
+                continue;
+            };
+            let context = mutation_probe_context(operation);
+            assert!(
+                crate::infrastructure::native_operations::registry::invoke_mutation(
+                    operation, tool.name, &args, &context
+                )
+                .is_some(),
+                "{} routes to native mutation operation `{}` without a registered handler",
+                tool.name,
+                operation
+            );
         }
     }
 
-    #[test]
-    fn form_transitional_tools_route_through_hidden_legacy_scripts_for_full_donor_contract() {
-        let expected = [
-            ("unica.form.add", "form-add", "form-add.py"),
-            ("unica.form.compile", "form-compile", "form-compile.py"),
-            ("unica.form.remove", "form-remove", "remove-form.py"),
-            ("unica.form.validate", "form-validate", "form-validate.py"),
-        ];
-        for (tool_name, expected_skill, expected_script) in expected {
-            let tool = tools()
-                .into_iter()
-                .find(|tool| tool.name == tool_name)
-                .expect("form tool exists");
-            match tool.handler {
-                ToolHandler::LegacyScript { skill, script, .. } => {
-                    assert_eq!(skill, expected_skill);
-                    assert_eq!(script, expected_script);
-                    let plugin_root = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-                        .join("../..")
-                        .join("plugins")
-                        .join("unica");
-                    let hidden_script = legacy_script_path(&plugin_root, skill, script);
-                    assert!(
-                        hidden_script.is_file(),
-                        "{tool_name} routes to missing hidden script {}",
-                        hidden_script.display()
-                    );
-                    let prompt_visible_script = plugin_root
-                        .join("skills")
-                        .join(skill)
-                        .join("scripts")
-                        .join(script);
-                    assert!(
-                        !prompt_visible_script.exists(),
-                        "{tool_name} must not ship skill-local operation script {}",
-                        prompt_visible_script.display()
-                    );
-                }
-                other => {
-                    panic!("{tool_name} should route through hidden legacy script, got {other:?}")
-                }
-            }
-        }
+    fn mutation_probe_context(operation: &str) -> WorkspaceContext {
+        let nanos = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_nanos();
+        let root = std::env::temp_dir().join(format!(
+            "unica-mutation-probe-{operation}-{}-{nanos}",
+            std::process::id()
+        ));
+        std::fs::create_dir_all(root.join("src")).unwrap();
+        WorkspaceContext::discover(root).unwrap()
     }
 
     #[test]
-    fn read_only_form_and_skd_info_tools_route_through_native_handlers() {
+    fn form_and_skd_tools_route_through_native_handlers() {
         let expected = [
-            ("unica.form.info", "form-info"),
-            ("unica.skd.info", "skd-info"),
+            (
+                "unica.form.add",
+                "form-add",
+                Some(DomainEventKind::FormChanged),
+            ),
+            (
+                "unica.form.compile",
+                "form-compile",
+                Some(DomainEventKind::FormChanged),
+            ),
+            (
+                "unica.form.edit",
+                "form-edit",
+                Some(DomainEventKind::FormChanged),
+            ),
+            ("unica.form.info", "form-info", None),
+            (
+                "unica.form.remove",
+                "form-remove",
+                Some(DomainEventKind::FormChanged),
+            ),
+            ("unica.form.validate", "form-validate", None),
+            (
+                "unica.skd.compile",
+                "skd-compile",
+                Some(DomainEventKind::SkdChanged),
+            ),
+            (
+                "unica.skd.edit",
+                "skd-edit",
+                Some(DomainEventKind::SkdChanged),
+            ),
+            ("unica.skd.info", "skd-info", None),
+            ("unica.skd.validate", "skd-validate", None),
         ];
-        for (tool_name, expected_operation) in expected {
+        for (tool_name, expected_operation, expected_event) in expected {
             let tool = tools()
                 .into_iter()
                 .find(|tool| tool.name == tool_name)
-                .expect("read-only form/SKD tool exists");
+                .expect("form/SKD tool exists");
 
             match tool.handler {
                 ToolHandler::NativeOperation { operation, event } => {
                     assert_eq!(operation, expected_operation);
-                    assert_eq!(event, None);
+                    assert_eq!(event, expected_event);
                 }
                 other => panic!("{tool_name} should route through native operation, got {other:?}"),
             }
@@ -1709,6 +1656,52 @@ mod tests {
     }
 
     #[test]
+    fn cf_edit_normalizes_crlf_before_lxml_compatible_write() {
+        let root = std::env::temp_dir().join(format!("unica-cf-crlf-{}", std::process::id()));
+        let workspace = root.join("workspace");
+        let src = workspace.join("src");
+        std::fs::create_dir_all(&src).unwrap();
+        std::fs::write(
+            workspace.join("v8project.yaml"),
+            "format: DESIGNER\nsource-set:\n  - name: main\n    type: CONFIGURATION\n    path: src\n",
+        )
+        .unwrap();
+        let config_path = src.join("Configuration.xml");
+        let crlf_config = support_test_configuration_xml("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa")
+            .replace('\n', "\r\n");
+        assert!(crlf_config.contains("\r\n"));
+        std::fs::write(&config_path, crlf_config).unwrap();
+
+        let mut args = Map::new();
+        args.insert(
+            "cwd".to_string(),
+            Value::String(workspace.display().to_string()),
+        );
+        args.insert("dryRun".to_string(), Value::Bool(false));
+        args.insert("ConfigPath".to_string(), Value::String("src".to_string()));
+        args.insert(
+            "Operation".to_string(),
+            Value::String("modify-property".to_string()),
+        );
+        args.insert(
+            "Value".to_string(),
+            Value::String("Version=2.0".to_string()),
+        );
+        args.insert("NoValidate".to_string(), Value::Bool(true));
+
+        let result = UnicaApplication::new()
+            .call_tool("unica.cf.edit", &args)
+            .unwrap();
+
+        assert!(result.ok, "{result:?}");
+        let after = std::fs::read_to_string(&config_path).unwrap();
+        assert!(after.contains("<Version>2.0</Version>"));
+        assert!(!after.contains("&#13;"));
+
+        let _ = std::fs::remove_dir_all(root);
+    }
+
+    #[test]
     fn meta_info_reports_locked_vendor_support_state_through_unica_boundary() {
         let root = std::env::temp_dir().join(format!("unica-meta-support-{}", std::process::id()));
         let workspace = root.join("workspace");
@@ -1760,6 +1753,556 @@ mod tests {
         assert!(stdout.contains("Поддержка: на замке"));
         assert!(stdout.contains("cfe-*"));
         assert!(!stdout.contains("powershell.exe"));
+
+        let _ = std::fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn support_edit_tool_is_mutating_native_operation() {
+        let tool = tools()
+            .into_iter()
+            .find(|tool| tool.name == "unica.support.edit")
+            .expect("support-edit tool exists");
+
+        assert!(tool.mutating);
+        assert_eq!(tool.cache_access.writes, &["metadata_graph"]);
+        match tool.handler {
+            ToolHandler::NativeOperation { operation, event } => {
+                assert_eq!(operation, "support-edit");
+                assert_eq!(event, Some(DomainEventKind::ConfigXmlChanged));
+            }
+            other => {
+                panic!("unica.support.edit should route through native operation, got {other:?}")
+            }
+        }
+    }
+
+    #[test]
+    fn support_edit_dry_run_does_not_change_parent_configurations() {
+        let (root, workspace, bin_path) = support_test_workspace(
+            "unica-support-edit-dry-run",
+            support_test_parent_configurations_bin(
+                "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+                "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb",
+                "cccccccc-cccc-cccc-cccc-cccccccccccc",
+            ),
+        );
+        let before = std::fs::read_to_string(&bin_path).unwrap();
+        let mut args = Map::new();
+        args.insert(
+            "cwd".to_string(),
+            Value::String(workspace.display().to_string()),
+        );
+        args.insert("Path".to_string(), Value::String("src".to_string()));
+        args.insert("Capability".to_string(), Value::String("off".to_string()));
+
+        let result = UnicaApplication::new()
+            .call_tool("unica.support.edit", &args)
+            .unwrap();
+
+        assert!(result.ok);
+        assert!(result.summary.contains("dry run"));
+        assert_eq!(std::fs::read_to_string(&bin_path).unwrap(), before);
+
+        let _ = std::fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn support_edit_capability_on_enables_global_editing() {
+        let bin = support_test_parent_configurations_bin(
+            "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+            "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb",
+            "cccccccc-cccc-cccc-cccc-cccccccccccc",
+        )
+        .replace("{6,0,", "{6,1,");
+        let (root, workspace, _bin_path) =
+            support_test_workspace("unica-support-edit-capability-on", bin);
+        let mut args = Map::new();
+        args.insert(
+            "cwd".to_string(),
+            Value::String(workspace.display().to_string()),
+        );
+        args.insert("dryRun".to_string(), Value::Bool(false));
+        args.insert("Path".to_string(), Value::String("src".to_string()));
+        args.insert("Capability".to_string(), Value::String("on".to_string()));
+
+        let result = UnicaApplication::new()
+            .call_tool("unica.support.edit", &args)
+            .unwrap();
+
+        assert!(result.ok, "{:?}", result.errors);
+        assert!(result.summary.contains("Возможность изменения"));
+        let mut info_args = Map::new();
+        info_args.insert(
+            "cwd".to_string(),
+            Value::String(workspace.display().to_string()),
+        );
+        info_args.insert("ConfigPath".to_string(), Value::String("src".to_string()));
+        let info = UnicaApplication::new()
+            .call_tool("unica.cf.info", &info_args)
+            .unwrap();
+        assert!(info
+            .stdout
+            .unwrap()
+            .contains("Возможность изменения: включена"));
+
+        let _ = std::fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn support_edit_capability_off_disables_global_editing_and_blocks_set() {
+        let (root, workspace, bin_path) = support_test_workspace(
+            "unica-support-edit-capability-off",
+            support_test_parent_configurations_bin(
+                "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+                "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb",
+                "cccccccc-cccc-cccc-cccc-cccccccccccc",
+            ),
+        );
+        let mut args = Map::new();
+        args.insert(
+            "cwd".to_string(),
+            Value::String(workspace.display().to_string()),
+        );
+        args.insert("dryRun".to_string(), Value::Bool(false));
+        args.insert("Path".to_string(), Value::String("src".to_string()));
+        args.insert("Capability".to_string(), Value::String("off".to_string()));
+
+        let result = UnicaApplication::new()
+            .call_tool("unica.support.edit", &args)
+            .unwrap();
+
+        assert!(result.ok, "{:?}", result.errors);
+        assert!(result.summary.contains("ВЫКЛЮЧЕНА"));
+        let bin_text = std::fs::read_to_string(&bin_path).unwrap();
+        assert!(bin_text.contains("{6,1,"));
+        assert!(bin_text.contains(",1,0,aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"));
+        assert!(bin_text.contains(",1,0,bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb"));
+        assert!(bin_text.contains(",1,0,cccccccc-cccc-cccc-cccc-cccccccccccc"));
+
+        let mut info_args = Map::new();
+        info_args.insert(
+            "cwd".to_string(),
+            Value::String(workspace.display().to_string()),
+        );
+        info_args.insert("ConfigPath".to_string(), Value::String("src".to_string()));
+        let info = UnicaApplication::new()
+            .call_tool("unica.cf.info", &info_args)
+            .unwrap();
+        assert!(info
+            .stdout
+            .unwrap()
+            .contains("Возможность изменения: выключена"));
+
+        let mut set_args = Map::new();
+        set_args.insert(
+            "cwd".to_string(),
+            Value::String(workspace.display().to_string()),
+        );
+        set_args.insert("dryRun".to_string(), Value::Bool(false));
+        set_args.insert(
+            "Path".to_string(),
+            Value::String("src/Catalogs/Items.xml".to_string()),
+        );
+        set_args.insert("Set".to_string(), Value::String("editable".to_string()));
+        let set_result = UnicaApplication::new()
+            .call_tool("unica.support.edit", &set_args)
+            .unwrap();
+        assert!(!set_result.ok);
+        assert!(set_result.errors.join("\n").contains("Capability=on"));
+
+        let _ = std::fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn support_edit_set_editable_updates_object_rule_and_meta_info() {
+        let (root, workspace, _bin_path) = support_test_workspace(
+            "unica-support-edit-set-editable",
+            support_test_parent_configurations_bin(
+                "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+                "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb",
+                "cccccccc-cccc-cccc-cccc-cccccccccccc",
+            ),
+        );
+        let mut args = Map::new();
+        args.insert(
+            "cwd".to_string(),
+            Value::String(workspace.display().to_string()),
+        );
+        args.insert("dryRun".to_string(), Value::Bool(false));
+        args.insert(
+            "Path".to_string(),
+            Value::String("src/Catalogs/Items.xml".to_string()),
+        );
+        args.insert("Set".to_string(), Value::String("editable".to_string()));
+
+        let result = UnicaApplication::new()
+            .call_tool("unica.support.edit", &args)
+            .unwrap();
+
+        assert!(result.ok, "{:?}", result.errors);
+        assert!(result.summary.contains("редактируется"));
+        let mut info_args = Map::new();
+        info_args.insert(
+            "cwd".to_string(),
+            Value::String(workspace.display().to_string()),
+        );
+        info_args.insert(
+            "ObjectPath".to_string(),
+            Value::String("src/Catalogs/Items.xml".to_string()),
+        );
+        let info = UnicaApplication::new()
+            .call_tool("unica.meta.info", &info_args)
+            .unwrap();
+        assert!(info
+            .stdout
+            .unwrap()
+            .contains("редактируется с сохранением поддержки"));
+
+        let _ = std::fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn support_edit_set_requires_global_capability_on() {
+        let bin = support_test_parent_configurations_bin(
+            "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+            "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb",
+            "cccccccc-cccc-cccc-cccc-cccccccccccc",
+        )
+        .replace("{6,0,", "{6,1,");
+        let (root, workspace, bin_path) =
+            support_test_workspace("unica-support-edit-set-capability-off", bin);
+        let before = std::fs::read_to_string(&bin_path).unwrap();
+        let mut args = Map::new();
+        args.insert(
+            "cwd".to_string(),
+            Value::String(workspace.display().to_string()),
+        );
+        args.insert("dryRun".to_string(), Value::Bool(false));
+        args.insert(
+            "Path".to_string(),
+            Value::String("src/Catalogs/Items.xml".to_string()),
+        );
+        args.insert("Set".to_string(), Value::String("editable".to_string()));
+
+        let result = UnicaApplication::new()
+            .call_tool("unica.support.edit", &args)
+            .unwrap();
+
+        assert!(!result.ok);
+        assert!(result.errors.join("\n").contains("Capability=on"));
+        assert_eq!(std::fs::read_to_string(&bin_path).unwrap(), before);
+
+        let _ = std::fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn support_edit_missing_parent_configurations_is_safe_noop() {
+        let root =
+            std::env::temp_dir().join(format!("unica-support-edit-no-bin-{}", std::process::id()));
+        let workspace = root.join("workspace");
+        let src = workspace.join("src");
+        std::fs::create_dir_all(&src).unwrap();
+        std::fs::write(
+            workspace.join("v8project.yaml"),
+            "format: DESIGNER\nsource-set:\n  - name: main\n    type: CONFIGURATION\n    path: src\n",
+        )
+        .unwrap();
+        std::fs::write(
+            src.join("Configuration.xml"),
+            support_test_configuration_xml("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"),
+        )
+        .unwrap();
+        let mut args = Map::new();
+        args.insert(
+            "cwd".to_string(),
+            Value::String(workspace.display().to_string()),
+        );
+        args.insert("dryRun".to_string(), Value::Bool(false));
+        args.insert("Path".to_string(), Value::String("src".to_string()));
+        args.insert("Capability".to_string(), Value::String("on".to_string()));
+
+        let result = UnicaApplication::new()
+            .call_tool("unica.support.edit", &args)
+            .unwrap();
+
+        assert!(result.ok);
+        assert!(result.changes.is_empty());
+        assert!(result.summary.contains("не на поддержке"));
+
+        let _ = std::fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn support_edit_set_editable_allows_follow_up_meta_edit() {
+        let (root, workspace, _bin_path) = support_test_workspace(
+            "unica-support-edit-unblocks-guard",
+            support_test_parent_configurations_bin(
+                "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+                "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb",
+                "cccccccc-cccc-cccc-cccc-cccccccccccc",
+            ),
+        );
+        let mut support_args = Map::new();
+        support_args.insert(
+            "cwd".to_string(),
+            Value::String(workspace.display().to_string()),
+        );
+        support_args.insert("dryRun".to_string(), Value::Bool(false));
+        support_args.insert(
+            "Path".to_string(),
+            Value::String("src/Catalogs/Items.xml".to_string()),
+        );
+        support_args.insert("Set".to_string(), Value::String("editable".to_string()));
+        let support_result = UnicaApplication::new()
+            .call_tool("unica.support.edit", &support_args)
+            .unwrap();
+        assert!(support_result.ok, "{:?}", support_result.errors);
+
+        let object_path = workspace.join("src").join("Catalogs").join("Items.xml");
+        let before = std::fs::read_to_string(&object_path).unwrap();
+        let mut edit_args = Map::new();
+        edit_args.insert(
+            "cwd".to_string(),
+            Value::String(workspace.display().to_string()),
+        );
+        edit_args.insert("dryRun".to_string(), Value::Bool(false));
+        edit_args.insert(
+            "ObjectPath".to_string(),
+            Value::String("src/Catalogs/Items.xml".to_string()),
+        );
+        edit_args.insert(
+            "Operation".to_string(),
+            Value::String("modify-property".to_string()),
+        );
+        edit_args.insert(
+            "Value".to_string(),
+            Value::String("Name=Changed".to_string()),
+        );
+
+        let edit_result = UnicaApplication::new()
+            .call_tool("unica.meta.edit", &edit_args)
+            .unwrap();
+
+        assert!(edit_result.ok, "{:?}", edit_result.errors);
+        assert_ne!(std::fs::read_to_string(&object_path).unwrap(), before);
+        assert!(std::fs::read_to_string(&object_path)
+            .unwrap()
+            .contains("<Name>Changed</Name>"));
+
+        let _ = std::fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn meta_compile_preserves_single_configuration_bom() {
+        let root = temp_meta_compile_workspace("unica-meta-compile-single-bom");
+        let workspace = root.join("workspace");
+        let src = workspace.join("src");
+        let config_path = src.join("Configuration.xml");
+        std::fs::write(
+            &config_path,
+            format!(
+                "\u{feff}{}",
+                support_test_configuration_xml("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa")
+            ),
+        )
+        .unwrap();
+        let json_path = workspace.join("report.json");
+        std::fs::write(
+            &json_path,
+            r#"{
+  "type": "Report",
+  "name": "MetaCompileBomReport",
+  "synonym": "MetaCompileBomReport"
+}"#,
+        )
+        .unwrap();
+
+        let result = call_meta_compile(&workspace, &json_path);
+
+        assert!(result.ok, "{:?}", result.errors);
+        let config_bytes = std::fs::read(&config_path).unwrap();
+        assert_eq!(leading_utf8_bom_count(&config_bytes), 1);
+        let config_text = String::from_utf8_lossy(&config_bytes).to_string();
+        assert!(config_text.contains("<Report>MetaCompileBomReport</Report>"));
+        roxmltree::Document::parse(config_text.trim_start_matches('\u{feff}')).unwrap();
+
+        let _ = std::fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn meta_compile_preserves_configuration_child_objects_formatting() {
+        let root = temp_meta_compile_workspace("unica-meta-compile-child-format");
+        let workspace = root.join("workspace");
+        let src = workspace.join("src");
+        let config_path = src.join("Configuration.xml");
+        std::fs::write(
+            &config_path,
+            concat!(
+                "\u{feff}<?xml version=\"1.0\" encoding=\"UTF-8\"?>\r\n",
+                "<MetaDataObject xmlns=\"http://v8.1c.ru/8.3/MDClasses\" version=\"2.17\">\r\n",
+                "\t<Configuration uuid=\"aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa\">\r\n",
+                "\t\t<Properties>\r\n",
+                "\t\t\t<Name>Demo</Name>\r\n",
+                "\t\t</Properties>\r\n",
+                "\t\t<ChildObjects>\r\n",
+                "\t\t\t<Catalog>Items</Catalog>\r\n",
+                "\t\t</ChildObjects>\r\n",
+                "\t</Configuration>\r\n",
+                "</MetaDataObject>"
+            ),
+        )
+        .unwrap();
+        let json_path = workspace.join("report.json");
+        std::fs::write(
+            &json_path,
+            r#"{
+  "type": "Report",
+  "name": "MetaCompileFormatReport",
+  "synonym": "MetaCompileFormatReport"
+}"#,
+        )
+        .unwrap();
+
+        let result = call_meta_compile(&workspace, &json_path);
+
+        assert!(result.ok, "{:?}", result.errors);
+        let config_text =
+            String::from_utf8_lossy(&std::fs::read(&config_path).unwrap()).to_string();
+        assert!(config_text.contains(concat!(
+            "\r\n\t\t\t<Catalog>Items</Catalog>\r\n",
+            "\t\t\t<Report>MetaCompileFormatReport</Report>\n",
+            "\t\t</ChildObjects>"
+        )));
+        assert!(!config_text.contains("\t\t\t\t\t<Report>MetaCompileFormatReport</Report>"));
+        assert!(!config_text
+            .contains("<Report>MetaCompileFormatReport</Report>\r\n\t\t</ChildObjects>"));
+
+        let _ = std::fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn template_add_preserves_single_object_bom() {
+        let root = temp_meta_compile_workspace("unica-template-add-single-bom");
+        let workspace = root.join("workspace");
+        let json_path = workspace.join("report.json");
+        std::fs::write(
+            &json_path,
+            r#"{
+  "type": "Report",
+  "name": "TemplateBomReport",
+  "synonym": "TemplateBomReport"
+}"#,
+        )
+        .unwrap();
+        let result = call_meta_compile(&workspace, &json_path);
+        assert!(result.ok, "{:?}", result.errors);
+
+        let report_path = workspace
+            .join("src")
+            .join("Reports")
+            .join("TemplateBomReport.xml");
+        let report_bytes = std::fs::read(&report_path).unwrap();
+        assert_eq!(leading_utf8_bom_count(&report_bytes), 1);
+
+        let mut args = Map::new();
+        args.insert(
+            "cwd".to_string(),
+            Value::String(workspace.display().to_string()),
+        );
+        args.insert("dryRun".to_string(), Value::Bool(false));
+        args.insert(
+            "ObjectName".to_string(),
+            Value::String("TemplateBomReport".to_string()),
+        );
+        args.insert(
+            "TemplateName".to_string(),
+            Value::String("ОсновнаяСхемаКомпоновкиДанных".to_string()),
+        );
+        args.insert(
+            "TemplateType".to_string(),
+            Value::String("DataCompositionSchema".to_string()),
+        );
+        args.insert(
+            "SrcDir".to_string(),
+            Value::String("src/Reports".to_string()),
+        );
+
+        let template_result = UnicaApplication::new()
+            .call_tool("unica.template.add", &args)
+            .unwrap();
+
+        assert!(template_result.ok, "{:?}", template_result.errors);
+        let report_bytes = std::fs::read(&report_path).unwrap();
+        assert_eq!(leading_utf8_bom_count(&report_bytes), 1);
+        assert!(String::from_utf8_lossy(&report_bytes)
+            .contains("<Template>ОсновнаяСхемаКомпоновкиДанных</Template>"));
+
+        let _ = std::fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn template_add_repairs_repeated_object_bom() {
+        let root = temp_meta_compile_workspace("unica-template-add-repeated-bom");
+        let workspace = root.join("workspace");
+        let json_path = workspace.join("report.json");
+        std::fs::write(
+            &json_path,
+            r#"{
+  "type": "Report",
+  "name": "TemplateRepeatedBomReport",
+  "synonym": "TemplateRepeatedBomReport"
+}"#,
+        )
+        .unwrap();
+        let result = call_meta_compile(&workspace, &json_path);
+        assert!(result.ok, "{:?}", result.errors);
+
+        let report_path = workspace
+            .join("src")
+            .join("Reports")
+            .join("TemplateRepeatedBomReport.xml");
+        let report_bytes = std::fs::read(&report_path).unwrap();
+        assert_eq!(leading_utf8_bom_count(&report_bytes), 1);
+
+        let mut damaged = b"\xef\xbb\xbf".to_vec();
+        damaged.extend_from_slice(&report_bytes);
+        std::fs::write(&report_path, damaged).unwrap();
+        let report_bytes = std::fs::read(&report_path).unwrap();
+        assert_eq!(leading_utf8_bom_count(&report_bytes), 2);
+
+        let mut args = Map::new();
+        args.insert(
+            "cwd".to_string(),
+            Value::String(workspace.display().to_string()),
+        );
+        args.insert("dryRun".to_string(), Value::Bool(false));
+        args.insert(
+            "ObjectName".to_string(),
+            Value::String("TemplateRepeatedBomReport".to_string()),
+        );
+        args.insert(
+            "TemplateName".to_string(),
+            Value::String("ОсновнаяСхемаКомпоновкиДанных".to_string()),
+        );
+        args.insert(
+            "TemplateType".to_string(),
+            Value::String("DataCompositionSchema".to_string()),
+        );
+        args.insert(
+            "SrcDir".to_string(),
+            Value::String("src/Reports".to_string()),
+        );
+
+        let template_result = UnicaApplication::new()
+            .call_tool("unica.template.add", &args)
+            .unwrap();
+
+        assert!(template_result.ok, "{:?}", template_result.errors);
+        let report_bytes = std::fs::read(&report_path).unwrap();
+        assert_eq!(leading_utf8_bom_count(&report_bytes), 1);
+        assert!(String::from_utf8_lossy(&report_bytes)
+            .contains("<Template>ОсновнаяСхемаКомпоновкиДанных</Template>"));
 
         let _ = std::fs::remove_dir_all(root);
     }
@@ -1827,6 +2370,144 @@ mod tests {
         assert!(stdout.contains("src/Catalogs/Items.xml"));
         assert!(stdout.contains("src/Catalogs/Other.xml"));
         assert_eq!(result.artifacts.len(), 2);
+
+        let _ = std::fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn role_compile_generates_distinct_non_placeholder_uuid_v4() {
+        let root = temp_meta_compile_workspace("unica-role-compile-uuid-v4");
+        let workspace = root.join("workspace");
+        let fixtures = workspace.join("fixtures");
+        std::fs::create_dir_all(&fixtures).unwrap();
+
+        let reader_json = fixtures.join("sample-reader.json");
+        std::fs::write(
+            &reader_json,
+            r#"{
+  "name": "SampleReader",
+  "synonym": "Sample reader",
+  "comment": "Synthetic repro",
+  "objects": ["Catalog.Items: @view"]
+}"#,
+        )
+        .unwrap();
+        let editor_json = fixtures.join("sample-editor.json");
+        std::fs::write(
+            &editor_json,
+            r#"{
+  "name": "SampleEditor",
+  "synonym": "Sample editor",
+  "comment": "Synthetic repro",
+  "objects": ["Catalog.Items: @view @edit"]
+}"#,
+        )
+        .unwrap();
+
+        for json_path in [&reader_json, &editor_json] {
+            let mut args = Map::new();
+            args.insert(
+                "cwd".to_string(),
+                Value::String(workspace.display().to_string()),
+            );
+            args.insert("dryRun".to_string(), Value::Bool(false));
+            args.insert(
+                "JsonPath".to_string(),
+                Value::String(json_path.display().to_string()),
+            );
+            args.insert("OutputDir".to_string(), Value::String("src".to_string()));
+            let result = UnicaApplication::new()
+                .call_tool("unica.role.compile", &args)
+                .unwrap();
+
+            assert!(result.ok, "{:?}", result.errors);
+        }
+
+        let reader_xml =
+            std::fs::read_to_string(workspace.join("src/Roles/SampleReader.xml")).unwrap();
+        let editor_xml =
+            std::fs::read_to_string(workspace.join("src/Roles/SampleEditor.xml")).unwrap();
+        assert_valid_root_uuid(&reader_xml, "Role");
+        assert_valid_root_uuid(&editor_xml, "Role");
+        let reader_uuid = metadata_root_uuid(&reader_xml, "Role");
+        let editor_uuid = metadata_root_uuid(&editor_xml, "Role");
+        assert_ne!(reader_uuid, editor_uuid);
+        for uuid in [&reader_uuid, &editor_uuid] {
+            assert!(
+                !uuid.starts_with("00000000-0000-0000-"),
+                "role.compile must not generate placeholder UUID: {uuid}"
+            );
+            assert_eq!(
+                uuid.as_bytes().get(14),
+                Some(&b'4'),
+                "UUID must be v4: {uuid}"
+            );
+        }
+
+        let _ = std::fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn role_compile_preserves_existing_uuid_when_regenerating_role() {
+        let root = temp_meta_compile_workspace("unica-role-compile-idempotent-uuid");
+        let workspace = root.join("workspace");
+        let fixtures = workspace.join("fixtures");
+        std::fs::create_dir_all(&fixtures).unwrap();
+
+        let role_json = fixtures.join("sample-reader.json");
+        std::fs::write(
+            &role_json,
+            r#"{
+  "name": "SampleReader",
+  "synonym": "Sample reader",
+  "comment": "Synthetic repro",
+  "objects": ["Catalog.Items: @view"]
+}"#,
+        )
+        .unwrap();
+
+        let mut args = Map::new();
+        args.insert(
+            "cwd".to_string(),
+            Value::String(workspace.display().to_string()),
+        );
+        args.insert("dryRun".to_string(), Value::Bool(false));
+        args.insert(
+            "JsonPath".to_string(),
+            Value::String(role_json.display().to_string()),
+        );
+        args.insert("OutputDir".to_string(), Value::String("src".to_string()));
+        let result = UnicaApplication::new()
+            .call_tool("unica.role.compile", &args)
+            .unwrap();
+
+        assert!(result.ok, "{:?}", result.errors);
+
+        let first_xml =
+            std::fs::read_to_string(workspace.join("src/Roles/SampleReader.xml")).unwrap();
+        let first_uuid = metadata_root_uuid(&first_xml, "Role");
+
+        let mut args = Map::new();
+        args.insert(
+            "cwd".to_string(),
+            Value::String(workspace.display().to_string()),
+        );
+        args.insert("dryRun".to_string(), Value::Bool(false));
+        args.insert(
+            "JsonPath".to_string(),
+            Value::String(role_json.display().to_string()),
+        );
+        args.insert("OutputDir".to_string(), Value::String("src".to_string()));
+        let result = UnicaApplication::new()
+            .call_tool("unica.role.compile", &args)
+            .unwrap();
+
+        assert!(result.ok, "{:?}", result.errors);
+
+        let regenerated_xml =
+            std::fs::read_to_string(workspace.join("src/Roles/SampleReader.xml")).unwrap();
+        let regenerated_uuid = metadata_root_uuid(&regenerated_xml, "Role");
+        assert_eq!(first_uuid, regenerated_uuid);
 
         let _ = std::fs::remove_dir_all(root);
     }
@@ -2696,6 +3377,13 @@ mod tests {
             .unwrap()
     }
 
+    fn leading_utf8_bom_count(bytes: &[u8]) -> usize {
+        bytes
+            .chunks_exact(3)
+            .take_while(|chunk| *chunk == [0xEF, 0xBB, 0xBF])
+            .count()
+    }
+
     fn assert_valid_root_uuid(xml: &str, tag_name: &str) {
         let uuid = metadata_root_uuid(xml, tag_name);
         assert!(
@@ -2964,6 +3652,37 @@ mod tests {
     </Properties>
   </Form>
 </MetaDataObject>"#
+    }
+
+    fn support_test_workspace(
+        prefix: &str,
+        parent_configurations_bin: String,
+    ) -> (PathBuf, PathBuf, PathBuf) {
+        let root = std::env::temp_dir().join(format!("{prefix}-{}", std::process::id()));
+        let workspace = root.join("workspace");
+        let src = workspace.join("src");
+        let ext = src.join("Ext");
+        let catalogs = src.join("Catalogs");
+        std::fs::create_dir_all(&ext).unwrap();
+        std::fs::create_dir_all(&catalogs).unwrap();
+        std::fs::write(
+            workspace.join("v8project.yaml"),
+            "format: DESIGNER\nsource-set:\n  - name: main\n    type: CONFIGURATION\n    path: src\n",
+        )
+        .unwrap();
+        std::fs::write(
+            src.join("Configuration.xml"),
+            support_test_configuration_xml("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"),
+        )
+        .unwrap();
+        std::fs::write(
+            catalogs.join("Items.xml"),
+            support_test_catalog_xml("bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb"),
+        )
+        .unwrap();
+        let bin_path = ext.join("ParentConfigurations.bin");
+        std::fs::write(&bin_path, parent_configurations_bin).unwrap();
+        (root, workspace, bin_path)
     }
 
     fn support_test_parent_configurations_bin(
