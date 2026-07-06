@@ -2330,6 +2330,222 @@ fn skip_xml_whitespace(xml_text: &str, mut cursor: usize) -> usize {
     cursor
 }
 
+pub(crate) struct FormCompileObjectField {
+    pub(crate) name: String,
+    pub(crate) type_name: String,
+}
+
+pub(crate) struct FormCompileObjectMeta {
+    pub(crate) object_type: String,
+    pub(crate) name: String,
+    pub(crate) synonym: String,
+    pub(crate) attributes: Vec<FormCompileObjectField>,
+    pub(crate) tabular_sections: usize,
+    pub(crate) code_length: i64,
+    pub(crate) hierarchical: bool,
+}
+
+pub(crate) fn form_compile_normalize_from_object_output_label(
+    output_label: &str,
+) -> Option<(String, String)> {
+    let trimmed = output_label.trim_end_matches(['/', '\\']);
+    if trimmed.ends_with("/Ext/Form.xml") || trimmed.ends_with("\\Ext\\Form.xml") {
+        return None;
+    }
+    let normalized = if trimmed.ends_with("/Ext") || trimmed.ends_with("\\Ext") {
+        format!("{trimmed}/Form.xml")
+    } else {
+        format!("{trimmed}/Ext/Form.xml")
+    };
+    Some((
+        normalized.clone(),
+        format!("[resolved] OutputPath -> {normalized}\n"),
+    ))
+}
+
+pub(crate) fn form_compile_definition_from_object(
+    args: &Map<String, Value>,
+    context: &WorkspaceContext,
+    _output_path: &Path,
+) -> Result<(Value, String), String> {
+    let object_path_raw = required_path(args, &["objectPath", "ObjectPath"], "ObjectPath")?;
+    let mut object_path = absolutize(object_path_raw.clone(), &context.cwd);
+    if object_path.extension().is_none() {
+        object_path.set_extension("xml");
+    }
+    if !object_path.exists() {
+        return Err(format!("Object file not found: {}", object_path.display()));
+    }
+    let object_text = read_utf8_sig(&object_path)?;
+    let meta = form_compile_parse_object_meta(&object_text)?;
+    let purpose = string_arg(args, &["purpose", "Purpose"]).unwrap_or("Item");
+
+    let defn = match (meta.object_type.as_str(), purpose) {
+        ("Catalog", "List") => form_compile_catalog_list_definition(&meta),
+        ("Catalog", other) => {
+            return Err(format!(
+                "native form compiler from-object currently supports Catalog List only; got Catalog {other}"
+            ));
+        }
+        (other, _) => {
+            return Err(format!(
+                "Object type '{other}' not supported. Supported: Catalog."
+            ));
+        }
+    };
+    let stdout = format!(
+        "[from-object] Type={}, Name={}, Attrs={}, TS={}\n",
+        meta.object_type,
+        meta.name,
+        meta.attributes.len(),
+        meta.tabular_sections
+    );
+    Ok((defn, stdout))
+}
+
+pub(crate) fn form_compile_parse_object_meta(
+    object_text: &str,
+) -> Result<FormCompileObjectMeta, String> {
+    let doc = Document::parse(object_text.trim_start_matches('\u{feff}'))
+        .map_err(|err| format!("XML parse error: {err}"))?;
+    let root = doc.root_element();
+    let type_node = root
+        .children()
+        .find(|node| node.is_element())
+        .ok_or_else(|| "Not a 1C metadata XML".to_string())?;
+    let object_type = type_node.tag_name().name().to_string();
+    let props = meta_info_child(type_node, "Properties")
+        .ok_or_else(|| "No <Properties> element found".to_string())?;
+    let name = meta_info_child_text(props, "Name").unwrap_or_default();
+    let synonym = form_compile_meta_synonym(props).unwrap_or_else(|| name.clone());
+    let child_objects = meta_info_child(type_node, "ChildObjects");
+    let attributes = child_objects
+        .map(|node| form_compile_object_fields(node, "Attribute"))
+        .unwrap_or_default();
+    let tabular_sections = child_objects
+        .map(|node| meta_info_children(node, "TabularSection").len())
+        .unwrap_or(0);
+    let code_length = meta_info_child_text(props, "CodeLength")
+        .and_then(|value| value.parse::<i64>().ok())
+        .unwrap_or(0);
+    let hierarchical = meta_info_child_text(props, "Hierarchical").as_deref() == Some("true");
+
+    Ok(FormCompileObjectMeta {
+        object_type,
+        name,
+        synonym,
+        attributes,
+        tabular_sections,
+        code_length,
+        hierarchical,
+    })
+}
+
+pub(crate) fn form_compile_meta_synonym(props: roxmltree::Node<'_, '_>) -> Option<String> {
+    let synonym = meta_info_child(props, "Synonym")?;
+    for item in meta_info_children(synonym, "item") {
+        let lang = meta_info_child_text(item, "lang").unwrap_or_default();
+        if lang == "ru" {
+            if let Some(content) = meta_info_child_text(item, "content") {
+                if !content.is_empty() {
+                    return Some(content);
+                }
+            }
+        }
+    }
+    meta_info_child(synonym, "content")
+        .map(meta_info_inner_text)
+        .filter(|value| !value.is_empty())
+}
+
+pub(crate) fn form_compile_object_fields(
+    child_objects: roxmltree::Node<'_, '_>,
+    tag_name: &str,
+) -> Vec<FormCompileObjectField> {
+    meta_info_children(child_objects, tag_name)
+        .into_iter()
+        .filter_map(|field| {
+            let props = meta_info_child(field, "Properties")?;
+            let name = meta_info_child_text(props, "Name")?;
+            let type_name = meta_info_child(props, "Type")
+                .map(form_compile_type_xml_text)
+                .unwrap_or_else(|| "string".to_string());
+            Some(FormCompileObjectField { name, type_name })
+        })
+        .collect()
+}
+
+pub(crate) fn form_compile_type_xml_text(type_node: roxmltree::Node<'_, '_>) -> String {
+    let types = meta_info_children(type_node, "Type")
+        .into_iter()
+        .filter_map(|node| node.text().map(str::to_string))
+        .filter(|value| !value.is_empty())
+        .collect::<Vec<_>>();
+    if types.is_empty() {
+        "string".to_string()
+    } else {
+        types.join(" | ")
+    }
+}
+
+pub(crate) fn form_compile_displayable_type(type_name: &str) -> bool {
+    !["ValueStorage", "v8:ValueStorage", "ХранилищеЗначения"]
+        .iter()
+        .any(|needle| type_name.contains(needle))
+}
+
+pub(crate) fn form_compile_catalog_list_definition(meta: &FormCompileObjectMeta) -> Value {
+    let mut columns = Vec::new();
+    columns.push(json!({"labelField": "Наименование", "path": "Список.Description"}));
+    if meta.code_length > 0 {
+        columns.push(json!({"labelField": "Код", "path": "Список.Code"}));
+    }
+    for attr in &meta.attributes {
+        if form_compile_displayable_type(&attr.type_name) {
+            columns.push(json!({
+                "labelField": attr.name,
+                "path": format!("Список.{}", attr.name),
+            }));
+        }
+    }
+    columns.push(json!({
+        "labelField": "Ссылка",
+        "path": "Список.Ref",
+        "userVisible": false,
+    }));
+
+    let mut table = json!({
+        "table": "Список",
+        "path": "Список",
+        "rowPictureDataPath": "Список.DefaultPicture",
+        "commandBarLocation": "None",
+        "tableAutofill": false,
+        "_dynList": true,
+        "columns": columns,
+    });
+    if meta.hierarchical {
+        if let Some(object) = table.as_object_mut() {
+            object.insert("initialTreeView".to_string(), json!("ExpandTopLevel"));
+            object.insert("enableStartDrag".to_string(), json!(true));
+            object.insert("enableDrag".to_string(), json!(true));
+        }
+    }
+
+    json!({
+        "title": meta.synonym,
+        "elements": [table],
+        "attributes": [{
+            "name": "Список",
+            "type": "DynamicList",
+            "main": true,
+            "settings": {
+                "mainTable": format!("Catalog.{}", meta.name),
+                "dynamicDataRead": true,
+            },
+        }],
+    })
+}
+
 pub(crate) fn form_add_supported_object_types() -> &'static [&'static str] {
     &[
         "Document",
@@ -2640,23 +2856,36 @@ pub(crate) fn compile_form(
         if !from_object && json_path_raw.is_none() {
             return Err("Either -JsonPath or -FromObject is required.".to_string());
         }
-        if from_object {
-            return Err("native form compiler currently supports -JsonPath mode only".to_string());
-        }
 
-        let output_label = string_arg(args, &["outputPath", "OutputPath"])
+        let mut output_label = string_arg(args, &["outputPath", "OutputPath"])
             .ok_or_else(|| "missing required OutputPath argument".to_string())?
             .to_string();
-        let output_path = absolutize(PathBuf::from(&output_label), &context.cwd);
-        let json_path_raw = json_path_raw.expect("checked above");
-        let json_path = absolutize(json_path_raw.clone(), &context.cwd);
-        if !json_path.exists() {
-            return Err(format!("File not found: {}", json_path_raw.display()));
+        let mut stdout = String::new();
+        if from_object {
+            if let Some((normalized, resolved_line)) =
+                form_compile_normalize_from_object_output_label(&output_label)
+            {
+                output_label = normalized;
+                stdout.push_str(&resolved_line);
+            }
         }
-        let json_text = fs::read_to_string(&json_path)
-            .map_err(|err| format!("failed to read {}: {err}", json_path.display()))?;
-        let defn: Value = serde_json::from_str(json_text.trim_start_matches('\u{feff}'))
-            .map_err(|err| format!("failed to parse Form JSON: {err}"))?;
+        let output_path = absolutize(PathBuf::from(&output_label), &context.cwd);
+        let defn = if from_object {
+            let (defn, from_object_stdout) =
+                form_compile_definition_from_object(args, context, &output_path)?;
+            stdout.push_str(&from_object_stdout);
+            defn
+        } else {
+            let json_path_raw = json_path_raw.expect("checked above");
+            let json_path = absolutize(json_path_raw.clone(), &context.cwd);
+            if !json_path.exists() {
+                return Err(format!("File not found: {}", json_path_raw.display()));
+            }
+            let json_text = fs::read_to_string(&json_path)
+                .map_err(|err| format!("failed to read {}: {err}", json_path.display()))?;
+            serde_json::from_str(json_text.trim_start_matches('\u{feff}'))
+                .map_err(|err| format!("failed to parse Form JSON: {err}"))?
+        };
 
         let format_version = detect_format_version(output_path.parent().unwrap_or(&context.cwd));
         let (xml, stats) = form_compile_xml(&defn, &format_version)?;
@@ -2667,7 +2896,6 @@ pub(crate) fn compile_form(
         }
         write_utf8_bom(&output_path, &xml)?;
 
-        let mut stdout = String::new();
         if let Some(registered) = register_form_in_parent_object(&output_path)? {
             stdout.push_str(&registered);
         }
@@ -3578,15 +3806,26 @@ pub(crate) fn form_compile_xml(
         "<Form xmlns=\"http://v8.1c.ru/8.3/xcf/logform\" xmlns:app=\"http://v8.1c.ru/8.2/managed-application/core\" xmlns:cfg=\"http://v8.1c.ru/8.1/data/enterprise/current-config\" xmlns:dcscor=\"http://v8.1c.ru/8.1/data-composition-system/core\" xmlns:dcssch=\"http://v8.1c.ru/8.1/data-composition-system/schema\" xmlns:dcsset=\"http://v8.1c.ru/8.1/data-composition-system/settings\" xmlns:ent=\"http://v8.1c.ru/8.1/data/enterprise\" xmlns:lf=\"http://v8.1c.ru/8.2/managed-application/logform\" xmlns:style=\"http://v8.1c.ru/8.1/data/ui/style\" xmlns:sys=\"http://v8.1c.ru/8.1/data/ui/fonts/system\" xmlns:v8=\"http://v8.1c.ru/8.1/data/core\" xmlns:v8ui=\"http://v8.1c.ru/8.1/data/ui\" xmlns:web=\"http://v8.1c.ru/8.1/data/ui/colors/web\" xmlns:win=\"http://v8.1c.ru/8.1/data/ui/colors/windows\" xmlns:xr=\"http://v8.1c.ru/8.3/xcf/readable\" xmlns:xs=\"http://www.w3.org/2001/XMLSchema\" xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\" version=\"{format_version}\">"
     ));
 
-    if let Some(title) = json_string_field(defn, "title").or_else(|| {
+    let form_title = json_string_field(defn, "title").or_else(|| {
         defn.get("properties")
             .and_then(|props| json_string_field(props, "title"))
-    }) {
+    });
+    if let Some(title) = form_title.as_deref() {
         emit_form_mltext(&mut lines, "\t", "Title", &title);
     }
 
-    if let Some(props) = defn.get("properties").and_then(Value::as_object) {
-        emit_form_properties(&mut lines, props, "\t");
+    let props_src = defn.get("properties").and_then(Value::as_object);
+    let mut props = Map::new();
+    if form_title.is_some() && !props_src.is_some_and(|values| values.contains_key("autoTitle")) {
+        props.insert("autoTitle".to_string(), Value::Bool(false));
+    }
+    if let Some(values) = props_src {
+        for (key, value) in values {
+            props.insert(key.clone(), value.clone());
+        }
+    }
+    if !props.is_empty() {
+        emit_form_properties(&mut lines, &props, "\t");
     }
 
     emit_form_auto_command_bar(&mut lines, defn, "\t");
@@ -3788,6 +4027,24 @@ pub(crate) fn emit_form_element(
     let Some(object) = element.as_object() else {
         return Ok(());
     };
+    if object.contains_key("table") {
+        let name = object
+            .get("name")
+            .and_then(Value::as_str)
+            .or_else(|| object.get("table").and_then(Value::as_str))
+            .ok_or_else(|| "Form table is missing name".to_string())?;
+        emit_form_table(lines, object, name, indent, ids)?;
+        return Ok(());
+    }
+    if object.contains_key("labelField") {
+        let name = object
+            .get("name")
+            .and_then(Value::as_str)
+            .or_else(|| object.get("labelField").and_then(Value::as_str))
+            .ok_or_else(|| "Form label field is missing name".to_string())?;
+        emit_form_label_field(lines, object, name, indent, ids);
+        return Ok(());
+    }
     if object.contains_key("button") {
         let name = object
             .get("name")
@@ -4014,6 +4271,282 @@ pub(crate) fn emit_form_command_bar_element(
     Ok(())
 }
 
+pub(crate) fn emit_form_label_field(
+    lines: &mut Vec<String>,
+    element: &Map<String, Value>,
+    name: &str,
+    indent: &str,
+    ids: &mut FormIdAllocator,
+) {
+    let id = ids.next();
+    lines.push(format!(
+        "{indent}<LabelField name=\"{}\" id=\"{id}\">",
+        escape_xml(name)
+    ));
+    let inner = format!("{indent}\t");
+    if let Some(path) = element.get("path").and_then(Value::as_str) {
+        lines.push(format!("{inner}<DataPath>{}</DataPath>", escape_xml(path)));
+    }
+    emit_form_common_flags(lines, element, &inner);
+    emit_form_companion(
+        lines,
+        "ContextMenu",
+        &format!("{name}КонтекстноеМеню"),
+        &inner,
+        ids,
+    );
+    emit_form_companion(
+        lines,
+        "ExtendedTooltip",
+        &format!("{name}РасширеннаяПодсказка"),
+        &inner,
+        ids,
+    );
+    lines.push(format!("{indent}</LabelField>"));
+}
+
+pub(crate) fn emit_form_table(
+    lines: &mut Vec<String>,
+    element: &Map<String, Value>,
+    name: &str,
+    indent: &str,
+    ids: &mut FormIdAllocator,
+) -> Result<(), String> {
+    let id = ids.next();
+    lines.push(format!(
+        "{indent}<Table name=\"{}\" id=\"{id}\">",
+        escape_xml(name)
+    ));
+    let inner = format!("{indent}\t");
+    if let Some(path) = element.get("path").and_then(Value::as_str) {
+        lines.push(format!("{inner}<DataPath>{}</DataPath>", escape_xml(path)));
+    }
+    emit_form_common_flags(lines, element, &inner);
+    if let Some(value) = element.get("commandBarLocation").and_then(Value::as_str) {
+        lines.push(format!(
+            "{inner}<CommandBarLocation>{}</CommandBarLocation>",
+            escape_xml(value)
+        ));
+    }
+    if let Some(value) = element.get("initialTreeView").and_then(Value::as_str) {
+        lines.push(format!(
+            "{inner}<InitialTreeView>{}</InitialTreeView>",
+            escape_xml(value)
+        ));
+    }
+    if element.get("enableDrag").and_then(Value::as_bool).is_some() {
+        let value = if element.get("enableDrag").and_then(Value::as_bool) == Some(true) {
+            "true"
+        } else {
+            "false"
+        };
+        lines.push(format!("{inner}<EnableDrag>{value}</EnableDrag>"));
+    }
+    if let Some(value) = element.get("rowPictureDataPath").and_then(Value::as_str) {
+        lines.push(format!(
+            "{inner}<RowPictureDataPath>{}</RowPictureDataPath>",
+            escape_xml(value)
+        ));
+    }
+    if element.get("_dynList").and_then(Value::as_bool) == Some(true) {
+        emit_form_dynamic_list_table_block(lines, element, &inner);
+    }
+    emit_form_companion(
+        lines,
+        "ContextMenu",
+        &format!("{name}КонтекстноеМеню"),
+        &inner,
+        ids,
+    );
+    if element.get("tableAutofill").is_some() {
+        let id = ids.next();
+        let value = if element.get("tableAutofill").and_then(Value::as_bool) == Some(true) {
+            "true"
+        } else {
+            "false"
+        };
+        lines.push(format!(
+            "{inner}<AutoCommandBar name=\"{}КоманднаяПанель\" id=\"{id}\">",
+            escape_xml(name)
+        ));
+        lines.push(format!("{inner}\t<Autofill>{value}</Autofill>"));
+        lines.push(format!("{inner}</AutoCommandBar>"));
+    } else {
+        emit_form_companion(
+            lines,
+            "AutoCommandBar",
+            &format!("{name}КоманднаяПанель"),
+            &inner,
+            ids,
+        );
+    }
+    emit_form_companion(
+        lines,
+        "ExtendedTooltip",
+        &format!("{name}РасширеннаяПодсказка"),
+        &inner,
+        ids,
+    );
+    emit_form_table_addition(
+        lines,
+        "SearchStringAddition",
+        name,
+        "СтрокаПоиска",
+        "SearchStringRepresentation",
+        &inner,
+        ids,
+    );
+    emit_form_table_addition(
+        lines,
+        "ViewStatusAddition",
+        name,
+        "СостояниеПросмотра",
+        "ViewStatusRepresentation",
+        &inner,
+        ids,
+    );
+    emit_form_table_addition(
+        lines,
+        "SearchControlAddition",
+        name,
+        "УправлениеПоиском",
+        "SearchControl",
+        &inner,
+        ids,
+    );
+
+    if let Some(columns) = element.get("columns").and_then(Value::as_array) {
+        if !columns.is_empty() {
+            lines.push(format!("{inner}<ChildItems>"));
+            for column in columns {
+                emit_form_element(lines, column, &format!("{inner}\t"), ids)?;
+            }
+            lines.push(format!("{inner}</ChildItems>"));
+        }
+    }
+    lines.push(format!("{indent}</Table>"));
+    Ok(())
+}
+
+pub(crate) fn emit_form_dynamic_list_table_block(
+    lines: &mut Vec<String>,
+    element: &Map<String, Value>,
+    indent: &str,
+) {
+    let auto_refresh = if element.get("autoRefresh").and_then(Value::as_bool) == Some(true) {
+        "true"
+    } else {
+        "false"
+    };
+    let auto_refresh_period = element
+        .get("autoRefreshPeriod")
+        .and_then(json_i64_value)
+        .unwrap_or(60);
+    let choice = element
+        .get("choiceFoldersAndItems")
+        .and_then(Value::as_str)
+        .unwrap_or("Items");
+    let restore = if element.get("restoreCurrentRow").and_then(Value::as_bool) == Some(true) {
+        "true"
+    } else {
+        "false"
+    };
+    let show_root = if element.get("showRoot").and_then(Value::as_bool) == Some(false) {
+        "false"
+    } else {
+        "true"
+    };
+    let allow_root_choice = if element.get("allowRootChoice").and_then(Value::as_bool) == Some(true)
+    {
+        "true"
+    } else {
+        "false"
+    };
+    let update_on_data_change = element
+        .get("updateOnDataChange")
+        .and_then(Value::as_str)
+        .unwrap_or("Auto");
+    let allow_url = if element
+        .get("allowGettingCurrentRowURL")
+        .and_then(Value::as_bool)
+        == Some(false)
+    {
+        "false"
+    } else {
+        "true"
+    };
+
+    lines.push(format!("{indent}<AutoRefresh>{auto_refresh}</AutoRefresh>"));
+    lines.push(format!(
+        "{indent}<AutoRefreshPeriod>{auto_refresh_period}</AutoRefreshPeriod>"
+    ));
+    lines.push(format!("{indent}<Period>"));
+    lines.push(format!(
+        "{indent}\t<v8:variant xsi:type=\"v8:StandardPeriodVariant\">Custom</v8:variant>"
+    ));
+    lines.push(format!(
+        "{indent}\t<v8:startDate>0001-01-01T00:00:00</v8:startDate>"
+    ));
+    lines.push(format!(
+        "{indent}\t<v8:endDate>0001-01-01T00:00:00</v8:endDate>"
+    ));
+    lines.push(format!("{indent}</Period>"));
+    lines.push(format!(
+        "{indent}<ChoiceFoldersAndItems>{choice}</ChoiceFoldersAndItems>"
+    ));
+    lines.push(format!(
+        "{indent}<RestoreCurrentRow>{restore}</RestoreCurrentRow>"
+    ));
+    lines.push(format!("{indent}<TopLevelParent xsi:nil=\"true\"/>"));
+    lines.push(format!("{indent}<ShowRoot>{show_root}</ShowRoot>"));
+    lines.push(format!(
+        "{indent}<AllowRootChoice>{allow_root_choice}</AllowRootChoice>"
+    ));
+    lines.push(format!(
+        "{indent}<UpdateOnDataChange>{update_on_data_change}</UpdateOnDataChange>"
+    ));
+    lines.push(format!(
+        "{indent}<AllowGettingCurrentRowURL>{allow_url}</AllowGettingCurrentRowURL>"
+    ));
+}
+
+pub(crate) fn emit_form_table_addition(
+    lines: &mut Vec<String>,
+    tag: &str,
+    table_name: &str,
+    suffix: &str,
+    source_type: &str,
+    indent: &str,
+    ids: &mut FormIdAllocator,
+) {
+    let name = format!("{table_name}{suffix}");
+    let id = ids.next();
+    lines.push(format!(
+        "{indent}<{tag} name=\"{}\" id=\"{id}\">",
+        escape_xml(&name)
+    ));
+    let inner = format!("{indent}\t");
+    lines.push(format!("{inner}<AdditionSource>"));
+    lines.push(format!("{inner}\t<Item>{}</Item>", escape_xml(table_name)));
+    lines.push(format!("{inner}\t<Type>{source_type}</Type>"));
+    lines.push(format!("{inner}</AdditionSource>"));
+    emit_form_companion(
+        lines,
+        "ContextMenu",
+        &format!("{name}КонтекстноеМеню"),
+        &inner,
+        ids,
+    );
+    emit_form_companion(
+        lines,
+        "ExtendedTooltip",
+        &format!("{name}РасширеннаяПодсказка"),
+        &inner,
+        ids,
+    );
+    lines.push(format!("{indent}</{tag}>"));
+}
+
 pub(crate) fn emit_form_element_events(
     lines: &mut Vec<String>,
     element: &Map<String, Value>,
@@ -4192,6 +4725,11 @@ pub(crate) fn emit_form_attributes(
         if object.get("savedData").and_then(Value::as_bool) == Some(true) {
             lines.push(format!("{inner}<SavedData>true</SavedData>"));
         }
+        if object.get("type").and_then(Value::as_str) == Some("DynamicList") {
+            if let Some(settings) = object.get("settings").and_then(Value::as_object) {
+                emit_form_dynamic_list_attribute_settings(lines, settings, &inner);
+            }
+        }
         if let Some(fill_checking) = object.get("fillChecking").and_then(Value::as_str) {
             lines.push(format!(
                 "{inner}<FillChecking>{}</FillChecking>",
@@ -4202,6 +4740,79 @@ pub(crate) fn emit_form_attributes(
     }
     lines.push(format!("{indent}</Attributes>"));
     Ok(())
+}
+
+pub(crate) fn emit_form_dynamic_list_attribute_settings(
+    lines: &mut Vec<String>,
+    settings: &Map<String, Value>,
+    indent: &str,
+) {
+    const CANON_FILTER_ID: &str = "dfcece9d-5077-440b-b6b3-45a5cb4538eb";
+    const CANON_ORDER_ID: &str = "88619765-ccb3-46c6-ac52-38e9c992ebd4";
+    const CANON_CA_ID: &str = "b75fecce-942b-4aed-abc9-e6a02e460fb3";
+    const CANON_ITEMS_ID: &str = "911b6018-f537-43e8-a417-da56b22f9aec";
+
+    let manual_query = if settings.get("manualQuery").and_then(Value::as_bool) == Some(true) {
+        "true"
+    } else {
+        "false"
+    };
+    let dynamic_data_read = if settings
+        .get("dynamicDataRead")
+        .and_then(Value::as_bool)
+        .unwrap_or(false)
+    {
+        "true"
+    } else {
+        "false"
+    };
+
+    lines.push(format!("{indent}<Settings xsi:type=\"DynamicList\">"));
+    lines.push(format!(
+        "{indent}\t<ManualQuery>{manual_query}</ManualQuery>"
+    ));
+    lines.push(format!(
+        "{indent}\t<DynamicDataRead>{dynamic_data_read}</DynamicDataRead>"
+    ));
+    if let Some(main_table) = settings.get("mainTable").and_then(Value::as_str) {
+        lines.push(format!(
+            "{indent}\t<MainTable>{}</MainTable>",
+            escape_xml(main_table)
+        ));
+    }
+    lines.push(format!("{indent}\t<ListSettings>"));
+    lines.push(format!("{indent}\t\t<dcsset:filter>"));
+    lines.push(format!(
+        "{indent}\t\t\t<dcsset:viewMode>Normal</dcsset:viewMode>"
+    ));
+    lines.push(format!(
+        "{indent}\t\t\t<dcsset:userSettingID>{CANON_FILTER_ID}</dcsset:userSettingID>"
+    ));
+    lines.push(format!("{indent}\t\t</dcsset:filter>"));
+    lines.push(format!("{indent}\t\t<dcsset:order>"));
+    lines.push(format!(
+        "{indent}\t\t\t<dcsset:viewMode>Normal</dcsset:viewMode>"
+    ));
+    lines.push(format!(
+        "{indent}\t\t\t<dcsset:userSettingID>{CANON_ORDER_ID}</dcsset:userSettingID>"
+    ));
+    lines.push(format!("{indent}\t\t</dcsset:order>"));
+    lines.push(format!("{indent}\t\t<dcsset:conditionalAppearance>"));
+    lines.push(format!(
+        "{indent}\t\t\t<dcsset:viewMode>Normal</dcsset:viewMode>"
+    ));
+    lines.push(format!(
+        "{indent}\t\t\t<dcsset:userSettingID>{CANON_CA_ID}</dcsset:userSettingID>"
+    ));
+    lines.push(format!("{indent}\t\t</dcsset:conditionalAppearance>"));
+    lines.push(format!(
+        "{indent}\t\t<dcsset:itemsViewMode>Normal</dcsset:itemsViewMode>"
+    ));
+    lines.push(format!(
+        "{indent}\t\t<dcsset:itemsUserSettingID>{CANON_ITEMS_ID}</dcsset:itemsUserSettingID>"
+    ));
+    lines.push(format!("{indent}\t</ListSettings>"));
+    lines.push(format!("{indent}</Settings>"));
 }
 
 pub(crate) fn emit_form_parameters(

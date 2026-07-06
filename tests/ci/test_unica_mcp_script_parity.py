@@ -964,6 +964,23 @@ SUCCESS_SCENARIOS = [
         compare_files=True,
     ),
     ParityScenario(
+        name="bsp-form-compile-catalog-list-from-object",
+        tool="unica.form.compile",
+        skill="form-compile",
+        script="form-compile.py",
+        arguments={
+            "FromObject": True,
+            "ObjectPath": "src/Catalogs/Валюты.xml",
+            "Purpose": "List",
+            "OutputPath": "src/Catalogs/Валюты/Forms/ФормаСписка/Ext/Form.xml",
+        },
+        fixtures=(
+            FileFixture(BSP_META_CATALOG_FIXTURE, "src/Catalogs/Валюты.xml"),
+        ),
+        expect_ok=True,
+        compare_files=True,
+    ),
+    ParityScenario(
         name="form-edit-additions",
         tool="unica.form.edit",
         skill="form-edit",
