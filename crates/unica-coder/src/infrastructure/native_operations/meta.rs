@@ -8108,7 +8108,10 @@ fn register_compiled_meta_child_text(
     let index = xml_text.find(close)?;
     let line_start = xml_text[..index].rfind('\n').map_or(0, |pos| pos + 1);
     let before_close_on_line = &xml_text[line_start..index];
-    let closing_indent = if before_close_on_line.chars().all(|ch| ch == '\t' || ch == ' ') {
+    let closing_indent = if before_close_on_line
+        .chars()
+        .all(|ch| ch == '\t' || ch == ' ')
+    {
         before_close_on_line
     } else {
         let open_index = xml_text[..index].rfind("<ChildObjects")?;
@@ -8124,7 +8127,10 @@ fn register_compiled_meta_child_text(
     let mut result =
         String::with_capacity(xml_text.len() + 1 + insertion.len() + 1 + closing_indent.len());
     result.push_str(&xml_text[..index]);
-    if !before_close_on_line.chars().all(|ch| ch == '\t' || ch == ' ') {
+    if !before_close_on_line
+        .chars()
+        .all(|ch| ch == '\t' || ch == ' ')
+    {
         result.push('\n');
         result.push_str(closing_indent);
     }

@@ -1626,6 +1626,14 @@ impl SupportState {
             .get(&object_uuid.to_ascii_lowercase())
             .copied()
     }
+
+    pub(crate) fn global_editing_enabled(&self) -> bool {
+        self.global_editing_enabled
+    }
+
+    pub(crate) fn removed(&self) -> bool {
+        self.removed
+    }
 }
 
 #[derive(Debug, Clone)]
