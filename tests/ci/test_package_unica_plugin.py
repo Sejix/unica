@@ -121,6 +121,28 @@ class PackageUnicaPluginTests(unittest.TestCase):
 
         self.assertEqual(mismatches, [])
 
+    def test_bsp_parity_fixtures_preserve_harvested_bytes(self) -> None:
+        repo_root = Path(__file__).resolve().parents[2]
+        result = subprocess.run(
+            [
+                "git",
+                "check-attr",
+                "text",
+                "whitespace",
+                "--",
+                "tests/fixtures/unica_mcp_script_parity/bsp/cf/Configuration.xml",
+            ],
+            cwd=repo_root,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+            check=False,
+        )
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn(": text: unset", result.stdout)
+        self.assertIn(": whitespace: unset", result.stdout)
+
     def test_unica_coder_has_no_runtime_operation_script_fallback(self) -> None:
         repo_root = Path(__file__).resolve().parents[2]
 

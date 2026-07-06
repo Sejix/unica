@@ -19,6 +19,7 @@
 - Runtime script fallback is forbidden; native tools must return `command: None`.
 - Do not make normal parity tests clone BSP from GitHub. Network-bound release assessment and deterministic parity tests must stay separate.
 - Do not commit runtime cache artifacts such as `.build`, `*.db`, `*.db-wal`, or `*.db-shm` into fixture directories.
+- BSP parity fixtures are byte-for-byte harvested evidence: preserve upstream BOM, CRLF, and mixed line endings, then verify bytes through manifest `size`/`sha256`. `.gitattributes` marks this subtree `-text -whitespace` so Git does not normalize or reject those fixture bytes.
 
 ## Files
 
@@ -31,6 +32,7 @@
 - Create: `tests/fixtures/unica_mcp_script_parity/bsp/mxl/*/Template.xml`
 - Create: `tests/fixtures/unica_mcp_script_parity/bsp/roles/*/Rights.xml`
 - Create: `tests/fixtures/unica_mcp_script_parity/bsp/subsystems/*`
+- Modify: `.gitattributes`
 - Modify: `tests/ci/test_unica_mcp_script_parity.py`
 - Modify: `tests/ci/test_release_assessment.py`
 - Modify: `tests/ci/test_package_unica_plugin.py`
@@ -55,6 +57,10 @@ Reject these files from committed fixtures:
 - `.build/**`;
 - `*.db`, `*.db-wal`, `*.db-shm`;
 - generated assessment reports.
+
+Do not normalize harvested BSP line endings. The manifest hash is the integrity
+check for these fixtures; Git whitespace checks are disabled only for the BSP
+fixture subtree.
 
 ## Task 1: BSP Fixture Harvester
 
@@ -142,6 +148,7 @@ Implementation rules:
 
 - use `Path.rglob`, not shelling out;
 - copy only UTF-8 text XML/BSL/JSON fixtures;
+- write fixture payloads with `write_bytes` and do not normalize BOM or line endings;
 - select deterministic first matches by sorted relative path and scoring helpers;
 - write `manifest.json` with source path, target path, file size, sha256, and category;
 - delete and recreate `out_root` on each harvest;

@@ -1423,6 +1423,42 @@ mod tests {
     }
 
     #[test]
+    fn mutating_native_tools_have_registered_mutation_handlers() {
+        let args = Map::new();
+        for tool in tools() {
+            if !tool.mutating {
+                continue;
+            }
+            let ToolHandler::NativeOperation { operation, .. } = tool.handler else {
+                continue;
+            };
+            let context = mutation_probe_context(operation);
+            assert!(
+                crate::infrastructure::native_operations::registry::invoke_mutation(
+                    operation, tool.name, &args, &context
+                )
+                .is_some(),
+                "{} routes to native mutation operation `{}` without a registered handler",
+                tool.name,
+                operation
+            );
+        }
+    }
+
+    fn mutation_probe_context(operation: &str) -> WorkspaceContext {
+        let nanos = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_nanos();
+        let root = std::env::temp_dir().join(format!(
+            "unica-mutation-probe-{operation}-{}-{nanos}",
+            std::process::id()
+        ));
+        std::fs::create_dir_all(root.join("src")).unwrap();
+        WorkspaceContext::discover(root).unwrap()
+    }
+
+    #[test]
     fn form_and_skd_tools_route_through_native_handlers() {
         let expected = [
             (

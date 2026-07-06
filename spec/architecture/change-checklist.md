@@ -64,3 +64,7 @@ cargo test --package unica-coder
 python3.12 -m unittest discover -s tests/ci
 git diff --check
 ```
+
+BSP parity fixtures are the narrow exception to whitespace normalization: they
+preserve harvested bytes under `.gitattributes` `-text -whitespace`, and their
+manifest hashes are the integrity check.
