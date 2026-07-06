@@ -2,23 +2,21 @@ use crate::domain::cache::{CacheAccess, CacheReport};
 use crate::domain::events::{DomainEvent, DomainEventKind};
 use crate::domain::project_sources::discover_project_source_map;
 use crate::domain::workspace::WorkspaceContext;
-use crate::infrastructure::internal_adapters::{
-    BslAnalyzerMcpAdapter, CliAdapter, CodeNavigationAdapter, CodeSearchAdapter, RuntimeAdapter,
-    StandardsAdapter,
-};
 use crate::infrastructure::native_operations::common::{
     absolutize, path_arg, required_string, support_guard_violation, SupportGuardRequirement,
     SupportGuardViolation,
 };
-use crate::infrastructure::native_operations::{meta, template, NativeOperationAdapter};
-use crate::infrastructure::workspace_services::WorkspaceServiceManager;
-use crate::infrastructure::workspace_state::WorkspaceStateRepository;
+use crate::infrastructure::native_operations::{meta, template};
 use crate::infrastructure::AdapterOutcome;
+use operation_descriptors::SupportGuardPolicy;
+use ports::{ApplicationPorts, DefaultApplicationPorts};
 use serde::Serialize;
 use serde_json::{Map, Value};
 use std::env;
 use std::path::{Path, PathBuf};
 
+mod operation_descriptors;
+mod ports;
 mod tool_contracts;
 pub use tool_contracts::input_schema_for_tool;
 
@@ -69,11 +67,20 @@ pub struct OperationResult {
     pub command: Option<Vec<String>>,
 }
 
-pub struct UnicaApplication;
+pub struct UnicaApplication {
+    ports: Box<dyn ApplicationPorts>,
+}
 
 impl UnicaApplication {
     pub fn new() -> Self {
-        Self
+        Self {
+            ports: Box::new(DefaultApplicationPorts),
+        }
+    }
+
+    #[cfg(test)]
+    fn with_ports(ports: Box<dyn ApplicationPorts>) -> Self {
+        Self { ports }
     }
 
     pub fn tools(&self) -> Vec<ToolSpec> {
@@ -89,7 +96,7 @@ impl UnicaApplication {
             .into_iter()
             .find(|tool| tool.name == name)
             .ok_or_else(|| format!("unknown unica tool: {name}"))?;
-        call_tool(spec, args)
+        call_tool(spec, args, self.ports.as_ref())
     }
 }
 
@@ -282,7 +289,11 @@ pub fn tools() -> Vec<ToolSpec> {
     specs
 }
 
-fn call_tool(spec: ToolSpec, args: &Map<String, Value>) -> Result<OperationResult, String> {
+fn call_tool(
+    spec: ToolSpec,
+    args: &Map<String, Value>,
+    ports: &dyn ApplicationPorts,
+) -> Result<OperationResult, String> {
     let dry_run = args
         .get("dryRun")
         .and_then(Value::as_bool)
@@ -295,10 +306,9 @@ fn call_tool(spec: ToolSpec, args: &Map<String, Value>) -> Result<OperationResul
         .unwrap_or(
             env::current_dir().map_err(|err| format!("failed to read current directory: {err}"))?,
         );
-    let context = WorkspaceContext::discover(cwd)?;
+    let context = ports.discover_workspace(cwd)?;
     tool_contracts::validate_workspace_paths(spec, args, dry_run, &context)?;
     tool_contracts::validate_native_source_set_format(spec, args, dry_run, &context)?;
-    let state_repo = WorkspaceStateRepository::new(&context);
     let index_report = crate::infrastructure::workspace_index::IndexStartReport::default();
     let support_guard_warning = if spec.mutating && !dry_run {
         match support_guard_check(spec, args, &context)? {
@@ -306,7 +316,7 @@ fn call_tool(spec: ToolSpec, args: &Map<String, Value>) -> Result<OperationResul
             SupportGuardCheck::Warn(warning) => Some(warning),
             SupportGuardCheck::Block(mut outcome) => {
                 outcome.warnings.extend(index_report.warnings);
-                let cache = state_repo.report(&context, &[], dry_run, spec.cache_access)?;
+                let cache = ports.cache_report(&context, &[], dry_run, spec.cache_access)?;
                 return Ok(OperationResult {
                     ok: outcome.ok,
                     summary: outcome.summary,
@@ -325,43 +335,7 @@ fn call_tool(spec: ToolSpec, args: &Map<String, Value>) -> Result<OperationResul
         None
     };
 
-    let mut outcome = match spec.handler {
-        ToolHandler::NativeOperation { operation, .. } => NativeOperationAdapter::invoke(
-            operation,
-            spec.name,
-            args,
-            &context,
-            dry_run,
-            spec.mutating,
-        )?,
-        ToolHandler::ProjectStatus => project_status(&context),
-        ToolHandler::ProjectMap => project_map(&context),
-        ToolHandler::BuildRuntime { command, .. } => CliAdapter::new(
-            "v8-runner",
-            command,
-            "build/runtime",
-        )
-        .invoke(spec.name, args, &context, dry_run, spec.mutating)?,
-        ToolHandler::RuntimeAdapter => {
-            RuntimeAdapter::new().invoke(spec.name, args, &context, dry_run, spec.mutating)?
-        }
-        ToolHandler::CodeAdapter { command } if command == ["search"] => {
-            CodeSearchAdapter::new().invoke(spec.name, args, &context, dry_run)?
-        }
-        ToolHandler::CodeAdapter {
-            command: ["definition"] | ["outline"] | ["grep"] | ["meta-profile"],
-        } => CodeNavigationAdapter::new().invoke(spec.name, args, &context, dry_run)?,
-        ToolHandler::CodeAdapter {
-            command: ["graph"] | ["analyze"],
-        } => BslAnalyzerMcpAdapter::new().invoke(spec.name, args, &context, dry_run)?,
-        ToolHandler::CodeAdapter { command } => CliAdapter::new(
-            "bsl-analyzer",
-            command,
-            "code analysis",
-        )
-        .invoke(spec.name, args, &context, dry_run, spec.mutating)?,
-        ToolHandler::StandardsAdapter { operation } => StandardsAdapter::invoke(operation, args),
-    };
+    let mut outcome = ports.invoke_handler(spec, args, &context, dry_run)?;
     if let Some(warning) = support_guard_warning {
         outcome.warnings.insert(0, warning);
     }
@@ -372,9 +346,9 @@ fn call_tool(spec: ToolSpec, args: &Map<String, Value>) -> Result<OperationResul
     } else {
         Vec::new()
     };
-    let cache = state_repo.report(&context, &events, dry_run, spec.cache_access)?;
+    let cache = ports.cache_report(&context, &events, dry_run, spec.cache_access)?;
     if spec.mutating && !dry_run && outcome.ok && !events.is_empty() {
-        WorkspaceServiceManager::new().notify_invalidation(&context, &events);
+        ports.notify_invalidation(&context, &events);
     }
 
     Ok(OperationResult {
@@ -438,71 +412,20 @@ fn support_guard_target(
     args: &Map<String, Value>,
     context: &WorkspaceContext,
 ) -> Option<(PathBuf, SupportGuardRequirement)> {
-    let operation = support_guard_operation(spec)?;
-    let editable = SupportGuardRequirement::Editable;
-    let removed = SupportGuardRequirement::Removed;
-    match operation {
-        "cf-edit" => support_guard_path_arg(
-            args,
-            context,
-            &["configPath", "ConfigPath", "path", "Path"],
-            editable,
-        ),
-        "meta-compile" => {
-            support_guard_path_arg(args, context, &["outputDir", "OutputDir"], editable)
+    let ToolHandler::NativeOperation { operation, .. } = spec.handler else {
+        return None;
+    };
+    let policy = operation_descriptors::native_operation_descriptor(operation)?.support_guard?;
+    match policy {
+        SupportGuardPolicy::PathArgs { names, requirement } => {
+            support_guard_path_arg(args, context, names, requirement)
         }
-        "meta-edit" => support_guard_path_arg(
-            args,
-            context,
-            &["objectPath", "ObjectPath", "path", "Path"],
-            editable,
-        ),
-        "meta-remove" => {
-            support_guard_meta_remove_target(args, context).map(|path| (path, removed))
+        SupportGuardPolicy::MetaRemove { requirement } => {
+            support_guard_meta_remove_target(args, context).map(|path| (path, requirement))
         }
-        "form-add" => {
-            support_guard_path_arg(args, context, &["objectPath", "ObjectPath"], editable)
+        SupportGuardPolicy::ObjectName { requirement } => {
+            support_guard_object_name_target(args, context).map(|path| (path, requirement))
         }
-        "form-compile" => {
-            support_guard_path_arg(args, context, &["outputPath", "OutputPath"], editable)
-        }
-        "form-edit" => support_guard_path_arg(args, context, &["formPath", "FormPath"], editable),
-        "form-remove" => {
-            support_guard_object_name_target(args, context).map(|path| (path, editable))
-        }
-        "help-add" => support_guard_object_name_target(args, context).map(|path| (path, editable)),
-        "interface-edit" => support_guard_path_arg(
-            args,
-            context,
-            &["ciPath", "CIPath", "path", "Path"],
-            editable,
-        ),
-        "subsystem-compile" => {
-            support_guard_path_arg(args, context, &["outputDir", "OutputDir"], editable)
-        }
-        "subsystem-edit" => {
-            support_guard_path_arg(args, context, &["subsystemPath", "SubsystemPath"], editable)
-        }
-        "template-add" | "template-remove" => {
-            support_guard_object_name_target(args, context).map(|path| (path, editable))
-        }
-        "skd-compile" | "mxl-compile" => {
-            support_guard_path_arg(args, context, &["outputPath", "OutputPath"], editable)
-        }
-        "skd-edit" => {
-            support_guard_path_arg(args, context, &["templatePath", "TemplatePath"], editable)
-        }
-        "role-compile" => {
-            support_guard_path_arg(args, context, &["outputDir", "OutputDir"], editable)
-        }
-        _ => None,
-    }
-}
-
-fn support_guard_operation(spec: ToolSpec) -> Option<&'static str> {
-    match spec.handler {
-        ToolHandler::NativeOperation { operation, .. } => Some(operation),
-        _ => None,
     }
 }
 
@@ -1782,6 +1705,150 @@ mod tests {
                 panic!("unica.support.edit should route through native operation, got {other:?}")
             }
         }
+    }
+
+    #[test]
+    fn native_operation_descriptors_cover_all_native_tool_handlers() {
+        for tool in tools() {
+            let ToolHandler::NativeOperation { operation, .. } = tool.handler else {
+                continue;
+            };
+            let descriptor = operation_descriptors::native_operation_descriptor(operation)
+                .unwrap_or_else(|| panic!("{operation} has no OperationDescriptor"));
+            assert_eq!(descriptor.operation, operation);
+        }
+    }
+
+    #[test]
+    fn native_operation_descriptors_drive_required_schema() {
+        for tool in tools() {
+            let ToolHandler::NativeOperation { operation, .. } = tool.handler else {
+                continue;
+            };
+            let descriptor = operation_descriptors::native_operation_descriptor(operation).unwrap();
+            let schema = input_schema_for_tool(&tool);
+            let required = schema["required"]
+                .as_array()
+                .expect("schema required is array")
+                .iter()
+                .map(|value| value.as_str().expect("required item is string"))
+                .collect::<Vec<_>>();
+            assert_eq!(required, descriptor.required_args, "{operation}");
+        }
+    }
+
+    #[test]
+    fn mutating_native_descriptors_declare_write_path_policy() {
+        for tool in tools() {
+            if !tool.mutating {
+                continue;
+            }
+            let ToolHandler::NativeOperation { operation, .. } = tool.handler else {
+                continue;
+            };
+            let descriptor = operation_descriptors::native_operation_descriptor(operation).unwrap();
+            assert!(
+                !descriptor.write_path_args.is_empty(),
+                "{operation} mutates workspace but has no descriptor write_path_args"
+            );
+        }
+    }
+
+    #[test]
+    fn source_format_sensitive_descriptors_name_source_paths() {
+        for operation in ["cf-info", "form-edit", "skd-edit", "role-info"] {
+            let descriptor = operation_descriptors::native_operation_descriptor(operation).unwrap();
+            assert!(
+                !descriptor.source_path_args.is_empty(),
+                "{operation} should declare source path args for source-set format validation"
+            );
+        }
+    }
+
+    #[test]
+    fn application_dispatches_workspace_cache_and_handlers_through_ports() {
+        use std::cell::RefCell;
+        use std::rc::Rc;
+
+        #[derive(Default)]
+        struct RecordingPorts {
+            discovered: RefCell<Vec<PathBuf>>,
+            invoked: RefCell<Vec<&'static str>>,
+            reported: RefCell<Vec<&'static str>>,
+            invalidated: RefCell<Vec<String>>,
+        }
+
+        impl ports::ApplicationPorts for Rc<RecordingPorts> {
+            fn discover_workspace(&self, cwd: PathBuf) -> Result<WorkspaceContext, String> {
+                self.discovered.borrow_mut().push(cwd.clone());
+                WorkspaceContext::discover(cwd)
+            }
+
+            fn invoke_handler(
+                &self,
+                spec: ToolSpec,
+                _args: &Map<String, Value>,
+                _context: &WorkspaceContext,
+                _dry_run: bool,
+            ) -> Result<AdapterOutcome, String> {
+                self.invoked.borrow_mut().push(spec.name);
+                Ok(AdapterOutcome::ok("fake port outcome"))
+            }
+
+            fn cache_report(
+                &self,
+                context: &WorkspaceContext,
+                events: &[DomainEvent],
+                dry_run: bool,
+                cache_access: CacheAccess,
+            ) -> Result<CacheReport, String> {
+                self.reported.borrow_mut().extend(cache_access.writes);
+                Ok(CacheReport {
+                    mode: if dry_run { "dry-run" } else { "write" }.to_string(),
+                    root: context.cache_root.display().to_string(),
+                    workspace_epoch: context.workspace_epoch,
+                    events: events
+                        .iter()
+                        .map(|event| format!("{:?}", event.kind))
+                        .collect(),
+                    invalidated: cache_access
+                        .writes
+                        .iter()
+                        .map(|name| (*name).to_string())
+                        .collect(),
+                    refreshed: Vec::new(),
+                    lazy_rebuilt: Vec::new(),
+                    stale: Vec::new(),
+                    fresh: Vec::new(),
+                })
+            }
+
+            fn notify_invalidation(&self, _context: &WorkspaceContext, events: &[DomainEvent]) {
+                self.invalidated
+                    .borrow_mut()
+                    .extend(events.iter().map(|event| format!("{:?}", event.kind)));
+            }
+        }
+
+        let root = std::env::temp_dir().join(format!("unica-ports-{}", std::process::id()));
+        std::fs::create_dir_all(&root).unwrap();
+        let mut args = Map::new();
+        args.insert("cwd".to_string(), Value::String(root.display().to_string()));
+        let ports = Rc::new(RecordingPorts::default());
+        let app = UnicaApplication::with_ports(Box::new(ports.clone()));
+
+        let result = app.call_tool("unica.build.load", &args).unwrap();
+
+        assert!(result.ok);
+        assert_eq!(ports.invoked.borrow().as_slice(), ["unica.build.load"]);
+        assert_eq!(
+            ports.reported.borrow().as_slice(),
+            ["workspace_graph", "metadata_graph"]
+        );
+        assert!(ports.invalidated.borrow().is_empty());
+        assert_eq!(ports.discovered.borrow().len(), 1);
+
+        let _ = std::fs::remove_dir_all(root);
     }
 
     #[test]

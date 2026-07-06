@@ -25,6 +25,10 @@ RELEASE_ARTIFACT_PATHS = {
     "scripts/install-unica.ps1",
 }
 
+RELEASE_ARTIFACT_PREFIXES = (
+    "crates/unica-coder/src/",
+)
+
 
 def normalize_path(path: str) -> str:
     path = path.strip()
@@ -34,7 +38,13 @@ def normalize_path(path: str) -> str:
 
 
 def needs_release_artifacts(paths: Iterable[str]) -> bool:
-    return any(normalize_path(path) in RELEASE_ARTIFACT_PATHS for path in paths)
+    for path in paths:
+        normalized = normalize_path(path)
+        if normalized in RELEASE_ARTIFACT_PATHS:
+            return True
+        if normalized.startswith(RELEASE_ARTIFACT_PREFIXES):
+            return True
+    return False
 
 
 def classify_stdin(stdin: TextIO) -> str:

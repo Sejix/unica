@@ -88,6 +88,8 @@ class UnicaWorkflowGuardrailTests(unittest.TestCase):
         self.assertIn("needs:\n      - verify-source\n      - verify-windows-installer\n      - classify-changes", text)
         self.assertIn("uses: dtolnay/rust-toolchain@stable", text)
         self.assertIn("python scripts/ci/build-unica-tools.py", text)
+        self.assertIn("python scripts/ci/check-tool-contracts.py", text)
+        self.assertIn('--tools-dir ".build/tool-bundles/${{ matrix.target }}/bin/${{ matrix.target }}"', text)
 
     def test_windows_installer_is_smoked_on_windows_powershell(self) -> None:
         text = self.workflow_text()

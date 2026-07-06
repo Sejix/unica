@@ -1,5 +1,7 @@
 # Shirokov Skill Upstream Audit - 2026-06-22
 
+> Historical: this audit is preserved as execution context. Current source of truth is code/tests/package metadata, then `spec/`, not this audit.
+
 ## Scope
 
 This audit covers `cc-1c-skills` by Nikolay Shirokov as the operation-parity donor

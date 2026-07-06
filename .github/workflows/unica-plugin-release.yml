@@ -153,6 +153,12 @@ jobs:
           --out-dir ".build/tool-bundles/${{ matrix.target }}"
           --work-dir ".build/tool-work/${{ matrix.target }}"
 
+      - name: Check bundled tool contracts
+        run: >
+          python scripts/ci/check-tool-contracts.py
+          --target "${{ matrix.target }}"
+          --tools-dir ".build/tool-bundles/${{ matrix.target }}/bin/${{ matrix.target }}"
+
       - uses: actions/upload-artifact@v4
         with:
           name: unica-tools-${{ matrix.target }}

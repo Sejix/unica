@@ -318,6 +318,41 @@ class PackageUnicaPluginTests(unittest.TestCase):
                     },
                 )
 
+    def test_plugin_source_copy_uses_git_tracked_files_only(self) -> None:
+        module = load_package_module()
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            repo_root = root / "repo"
+            plugin_src = repo_root / "plugins" / "unica"
+            plugin_src.mkdir(parents=True)
+            (plugin_src / ".mcp.json").write_text("{}", encoding="utf-8")
+            (plugin_src / "skills" / "web-test").mkdir(parents=True)
+            (plugin_src / "skills" / "web-test" / "SKILL.md").write_text("tracked", encoding="utf-8")
+            (plugin_src / "skills" / "web-test" / "scripts" / "node_modules" / "pkg").mkdir(parents=True)
+            (plugin_src / "skills" / "web-test" / "scripts" / "node_modules" / "pkg" / "index.js").write_text(
+                "untracked dependency",
+                encoding="utf-8",
+            )
+            (plugin_src / "skills" / "web-test" / ".browser-session.json").write_text("{}", encoding="utf-8")
+            (plugin_src / "skills" / "web-test" / "screenshot.png").write_bytes(b"png")
+            (plugin_src / "skills" / "web-test" / "trace.mp4").write_bytes(b"mp4")
+
+            dest = root / "dest"
+            with patch.object(
+                module,
+                "git_tracked_plugin_files",
+                return_value=[".mcp.json", "skills/web-test/SKILL.md"],
+            ):
+                module.copy_tracked_plugin_source(repo_root, plugin_src, dest)
+
+            self.assertTrue((dest / ".mcp.json").is_file())
+            self.assertTrue((dest / "skills" / "web-test" / "SKILL.md").is_file())
+            self.assertFalse((dest / "skills" / "web-test" / "scripts" / "node_modules").exists())
+            self.assertFalse((dest / "skills" / "web-test" / ".browser-session.json").exists())
+            self.assertFalse((dest / "skills" / "web-test" / "screenshot.png").exists())
+            self.assertFalse((dest / "skills" / "web-test" / "trace.mp4").exists())
+
     def write_bundle(self, root: Path, target: str, module) -> Path:
         bundle = root / f"unica-tools-{target}"
         bin_dir = bundle / "bin" / target
