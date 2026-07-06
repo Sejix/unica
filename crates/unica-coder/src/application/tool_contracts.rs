@@ -388,6 +388,13 @@ fn validate_support_arguments(
         return Ok(());
     }
 
+    validate_unique_alias_group(tool.name, args, &["Capability", "capability"])?;
+    validate_unique_alias_group(tool.name, args, &["Set", "set"])?;
+    validate_unique_alias_group(
+        tool.name,
+        args,
+        &["Path", "path", "TargetPath", "targetPath"],
+    )?;
     validate_enum_alias_argument(
         tool.name,
         args,
@@ -422,6 +429,25 @@ fn validate_support_arguments(
 
 fn contains_any(args: &Map<String, Value>, names: &[&str]) -> bool {
     names.iter().any(|name| args.contains_key(*name))
+}
+
+fn validate_unique_alias_group(
+    tool_name: &str,
+    args: &Map<String, Value>,
+    names: &[&str],
+) -> Result<(), String> {
+    let present = names
+        .iter()
+        .copied()
+        .filter(|name| args.contains_key(*name))
+        .collect::<Vec<_>>();
+    if present.len() > 1 {
+        return Err(format!(
+            "{tool_name} received conflicting aliases: {}",
+            present.join(", ")
+        ));
+    }
+    Ok(())
 }
 
 fn validate_enum_alias_argument(
@@ -1110,6 +1136,33 @@ mod tests {
         args.insert("Set".to_string(), json!("editable"));
         let error = validate_tool_arguments(tool, &args, false).unwrap_err();
         assert!(error.contains("exactly one"));
+
+        let mut args = Map::new();
+        args.insert("Path".to_string(), json!("src"));
+        args.insert("Capability".to_string(), json!("on"));
+        args.insert("capability".to_string(), json!("off"));
+        let error = validate_tool_arguments(tool, &args, false).unwrap_err();
+        assert!(error.contains("conflicting aliases"));
+        assert!(error.contains("Capability"));
+        assert!(error.contains("capability"));
+
+        let mut args = Map::new();
+        args.insert("Path".to_string(), json!("src"));
+        args.insert("Set".to_string(), json!("editable"));
+        args.insert("set".to_string(), json!("locked"));
+        let error = validate_tool_arguments(tool, &args, false).unwrap_err();
+        assert!(error.contains("conflicting aliases"));
+        assert!(error.contains("Set"));
+        assert!(error.contains("set"));
+
+        let mut args = Map::new();
+        args.insert("Path".to_string(), json!("src"));
+        args.insert("TargetPath".to_string(), json!("src/Catalogs/Items.xml"));
+        args.insert("Capability".to_string(), json!("on"));
+        let error = validate_tool_arguments(tool, &args, false).unwrap_err();
+        assert!(error.contains("conflicting aliases"));
+        assert!(error.contains("Path"));
+        assert!(error.contains("TargetPath"));
     }
 
     #[test]

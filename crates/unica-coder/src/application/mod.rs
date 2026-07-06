@@ -1873,6 +1873,71 @@ mod tests {
     }
 
     #[test]
+    fn support_edit_capability_off_disables_global_editing_and_blocks_set() {
+        let (root, workspace, bin_path) = support_test_workspace(
+            "unica-support-edit-capability-off",
+            support_test_parent_configurations_bin(
+                "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+                "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb",
+                "cccccccc-cccc-cccc-cccc-cccccccccccc",
+            ),
+        );
+        let mut args = Map::new();
+        args.insert(
+            "cwd".to_string(),
+            Value::String(workspace.display().to_string()),
+        );
+        args.insert("dryRun".to_string(), Value::Bool(false));
+        args.insert("Path".to_string(), Value::String("src".to_string()));
+        args.insert("Capability".to_string(), Value::String("off".to_string()));
+
+        let result = UnicaApplication::new()
+            .call_tool("unica.support.edit", &args)
+            .unwrap();
+
+        assert!(result.ok, "{:?}", result.errors);
+        assert!(result.summary.contains("ВЫКЛЮЧЕНА"));
+        let bin_text = std::fs::read_to_string(&bin_path).unwrap();
+        assert!(bin_text.contains("{6,1,"));
+        assert!(bin_text.contains(",1,0,aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"));
+        assert!(bin_text.contains(",1,0,bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb"));
+        assert!(bin_text.contains(",1,0,cccccccc-cccc-cccc-cccc-cccccccccccc"));
+
+        let mut info_args = Map::new();
+        info_args.insert(
+            "cwd".to_string(),
+            Value::String(workspace.display().to_string()),
+        );
+        info_args.insert("ConfigPath".to_string(), Value::String("src".to_string()));
+        let info = UnicaApplication::new()
+            .call_tool("unica.cf.info", &info_args)
+            .unwrap();
+        assert!(info
+            .stdout
+            .unwrap()
+            .contains("Возможность изменения: выключена"));
+
+        let mut set_args = Map::new();
+        set_args.insert(
+            "cwd".to_string(),
+            Value::String(workspace.display().to_string()),
+        );
+        set_args.insert("dryRun".to_string(), Value::Bool(false));
+        set_args.insert(
+            "Path".to_string(),
+            Value::String("src/Catalogs/Items.xml".to_string()),
+        );
+        set_args.insert("Set".to_string(), Value::String("editable".to_string()));
+        let set_result = UnicaApplication::new()
+            .call_tool("unica.support.edit", &set_args)
+            .unwrap();
+        assert!(!set_result.ok);
+        assert!(set_result.errors.join("\n").contains("Capability=on"));
+
+        let _ = std::fs::remove_dir_all(root);
+    }
+
+    #[test]
     fn support_edit_set_editable_updates_object_rule_and_meta_info() {
         let (root, workspace, _bin_path) = support_test_workspace(
             "unica-support-edit-set-editable",
