@@ -326,6 +326,45 @@ SUCCESS_SCENARIOS = [
         compare_files=True,
     ),
     ParityScenario(
+        name="bsp-cfe-borrow-russian-types-batch",
+        tool="unica.cfe.borrow",
+        skill="cfe-borrow",
+        script="cfe-borrow.py",
+        arguments={
+            "ExtensionPath": "src-cfe",
+            "ConfigPath": "src",
+            "Object": "Справочник.Валюты;;Документ.АктОбУничтоженииПерсональныхДанных",
+        },
+        setup_steps=(
+            SetupStep(
+                skill="cfe-init",
+                script="cfe-init.py",
+                tool="unica.cfe.init",
+                arguments={
+                    "Name": "ParityExtension",
+                    "Synonym": "Parity extension",
+                    "NamePrefix": "PE_",
+                    "OutputDir": "src-cfe",
+                    "Purpose": "Customization",
+                    "Version": "1.0.0.1",
+                    "Vendor": "Unica",
+                    "CompatibilityMode": "Version8_3_24",
+                    "NoRole": True,
+                },
+            ),
+        ),
+        fixtures=(
+            FileFixture(BSP_CF_CONFIGURATION_FIXTURE, "src/Configuration.xml"),
+            FileFixture(BSP_META_CATALOG_FIXTURE, "src/Catalogs/Валюты.xml"),
+            FileFixture(
+                BSP_META_DOCUMENT_FIXTURE,
+                "src/Documents/АктОбУничтоженииПерсональныхДанных.xml",
+            ),
+        ),
+        expect_ok=True,
+        compare_files=True,
+    ),
+    ParityScenario(
         name="bsp-cfe-borrow-real-document-object",
         tool="unica.cfe.borrow",
         skill="cfe-borrow",

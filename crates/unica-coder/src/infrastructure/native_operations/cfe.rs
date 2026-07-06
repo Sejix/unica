@@ -1324,7 +1324,10 @@ pub(crate) fn cfe_borrow_normalize_lxml_config_serialization(ext_text: &mut Stri
         );
     }
     *ext_text = ext_text.replace("<DefaultRoles></DefaultRoles>", "<DefaultRoles/>");
-    *ext_text = ext_text.replace("</Language>\r\n", "</Language>&#13;\n");
+    if let Some((start, end, _)) = cf_edit_element_range(ext_text, "ChildObjects") {
+        let child_objects = ext_text[start..end].replace("\r\n", "&#13;\n");
+        ext_text.replace_range(start..end, &child_objects);
+    }
     if !ext_text.ends_with('\n') {
         ext_text.push('\n');
     }
