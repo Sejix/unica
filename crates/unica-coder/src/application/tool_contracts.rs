@@ -8,6 +8,18 @@ use std::path::{Component, Path, PathBuf};
 
 const COMMON_ARGS: &[&str] = &["cwd", "dryRun", "confirm"];
 
+const META_EDIT_OPERATIONS: &[&str] = &[
+    "modify-property",
+    "add-registerRecord",
+    "add-attribute",
+    "add-ts",
+    "add-ts-attribute",
+    "modify-attribute",
+    "modify-ts",
+    "modify-ts-attribute",
+    "remove-ts-attribute",
+];
+
 const NATIVE_XML_DSL_ARGS: &[&str] = &[
     "BaseForm",
     "Batch",
@@ -370,6 +382,7 @@ pub fn validate_tool_arguments(
         validate_runtime_arguments(tool.name, args, dry_run)?;
     }
     validate_code_arguments(tool, args, dry_run)?;
+    validate_meta_edit_arguments(tool, args)?;
     validate_support_arguments(tool, args, dry_run)?;
 
     if !dry_run {
@@ -377,6 +390,40 @@ pub fn validate_tool_arguments(
             if !args.contains_key(required) {
                 return Err(format!("{} requires `{required}` argument", tool.name));
             }
+        }
+    }
+
+    Ok(())
+}
+
+fn validate_meta_edit_arguments(tool: ToolSpec, args: &Map<String, Value>) -> Result<(), String> {
+    if tool.name != "unica.meta.edit" {
+        return Ok(());
+    }
+
+    validate_unique_alias_group(tool.name, args, &["Operation", "operation"])?;
+    validate_unique_alias_group(tool.name, args, &["DefinitionFile", "definitionFile"])?;
+
+    if contains_any(args, &["DefinitionFile", "definitionFile"]) {
+        return Err(format!(
+            "{} does not support DefinitionFile mode in the native metadata editor; use inline Operation",
+            tool.name
+        ));
+    }
+
+    for name in ["Operation", "operation"] {
+        let Some(value) = args.get(name) else {
+            continue;
+        };
+        let Some(operation) = value.as_str() else {
+            return Err(format!("{} argument `{name}` must be string", tool.name));
+        };
+        if !META_EDIT_OPERATIONS.contains(&operation) {
+            return Err(format!(
+                "{} unsupported Operation `{operation}`; supported: {}",
+                tool.name,
+                META_EDIT_OPERATIONS.join(", ")
+            ));
         }
     }
 
@@ -919,6 +966,9 @@ fn property_schema(name: &str) -> Value {
 }
 
 fn property_schema_for_tool(tool: &ToolSpec, name: &str) -> Value {
+    if tool.name == "unica.meta.edit" && matches!(name, "Operation" | "operation") {
+        return json!({ "type": "string", "enum": META_EDIT_OPERATIONS });
+    }
     if matches!(tool.handler, ToolHandler::RuntimeAdapter) {
         match name {
             "operation" => return json!({ "type": "string", "enum": RUNTIME_OPERATIONS }),
