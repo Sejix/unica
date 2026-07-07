@@ -1,5 +1,7 @@
 # BSP Parity Fixtures Implementation Plan
 
+> Historical: this plan is preserved as execution context. Current source of truth is code/tests/package metadata, then `spec/`, not this plan.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Expand `unica-coder` parity coverage by harvesting small, stable fixtures from the pinned BSP (`1c-syntax/ssl_3_2` ref `3.2.1.446`) and adding focused Rust-vs-reference parity scenarios across native XML/DSL tools.

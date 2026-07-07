@@ -1,5 +1,7 @@
 # Dependency Refresh And Capability Adoption Plan
 
+> Historical: this plan is preserved as execution context. Current source of truth is code/tests/package metadata, then `spec/`, not this plan.
+
 Date: 2026-06-26
 
 ## Scope

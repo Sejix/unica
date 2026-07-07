@@ -1,3 +1,4 @@
+use super::operation_descriptors::native_operation_descriptor;
 use super::{ToolHandler, ToolSpec};
 use crate::domain::project_sources::{discover_project_source_map, SourceFormat};
 use crate::domain::workspace::WorkspaceContext;
@@ -698,15 +699,20 @@ pub fn validate_workspace_paths(
     dry_run: bool,
     context: &WorkspaceContext,
 ) -> Result<(), String> {
-    if dry_run || !tool.mutating {
+    if dry_run {
         return Ok(());
     }
     if !is_native_xml_tool(tool) && !matches!(tool.handler, ToolHandler::RuntimeAdapter) {
         return Ok(());
     }
 
+    let write_args = write_path_args(tool);
+    if write_args.is_empty() {
+        return Ok(());
+    }
+
     let policy = WorkspacePathPolicy::new(context);
-    for key in write_path_args(tool) {
+    for key in write_args {
         if let Some(Value::String(path)) = args.get(*key) {
             policy.resolve_write(path.as_str())?;
         }
@@ -729,7 +735,7 @@ pub fn validate_native_source_set_format(
         return Ok(());
     }
 
-    for key in native_source_path_args() {
+    for key in native_source_path_args(tool) {
         let Some(Value::String(raw_path)) = args.get(*key) else {
             continue;
         };
@@ -768,28 +774,9 @@ pub fn validate_native_source_set_format(
 
 fn write_path_args(tool: ToolSpec) -> &'static [&'static str] {
     match tool.handler {
-        ToolHandler::NativeOperation { operation, .. } => match operation {
-            "cf-init" | "cfe-init" => &["OutputDir", "outputDir"],
-            "cf-edit" => &["ConfigPath", "configPath", "Path", "path"],
-            "support-edit" => &["Path", "path", "TargetPath", "targetPath"],
-            "meta-compile" => &["OutputDir", "outputDir"],
-            "meta-edit" => &["ObjectPath", "objectPath", "Path", "path"],
-            "meta-remove" => &["ConfigDir", "configDir"],
-            "form-add" => &["ObjectPath", "objectPath"],
-            "form-compile" => &["OutputPath", "outputPath"],
-            "form-edit" => &["FormPath", "formPath"],
-            "form-remove" => &["SrcDir", "srcDir"],
-            "help-add" => &["SrcDir", "srcDir"],
-            "interface-edit" => &["CIPath", "ciPath"],
-            "subsystem-compile" => &["OutputDir", "outputDir", "Parent", "parent"],
-            "subsystem-edit" => &["SubsystemPath", "subsystemPath"],
-            "template-add" | "template-remove" => &["SrcDir", "srcDir"],
-            "skd-compile" | "mxl-compile" => &["OutputPath", "outputPath"],
-            "skd-edit" => &["TemplatePath", "templatePath"],
-            "role-compile" => &["OutputDir", "outputDir"],
-            "cfe-borrow" | "cfe-patch-method" => &["ExtensionPath", "extensionPath"],
-            _ => &[],
-        },
+        ToolHandler::NativeOperation { operation, .. } => native_operation_descriptor(operation)
+            .map(|descriptor| descriptor.write_path_args)
+            .unwrap_or(&[]),
         ToolHandler::RuntimeAdapter => &["config", "path", "output", "settings", "mcpConfig"],
         _ => &[],
     }
@@ -799,47 +786,13 @@ fn is_native_xml_tool(tool: ToolSpec) -> bool {
     matches!(tool.handler, ToolHandler::NativeOperation { .. })
 }
 
-fn native_source_path_args() -> &'static [&'static str] {
-    &[
-        "CIPath",
-        "ConfigDir",
-        "ConfigPath",
-        "DataPath",
-        "ExtensionPath",
-        "FormPath",
-        "JsonPath",
-        "MetadataPath",
-        "ModulePath",
-        "ObjectPath",
-        "OutFile",
-        "OutputDir",
-        "OutputPath",
-        "Path",
-        "RightsPath",
-        "SrcDir",
-        "SubsystemPath",
-        "TemplatePath",
-        "TargetPath",
-        "ciPath",
-        "configDir",
-        "configPath",
-        "dataPath",
-        "extensionPath",
-        "formPath",
-        "jsonPath",
-        "metadataPath",
-        "modulePath",
-        "objectPath",
-        "outFile",
-        "outputDir",
-        "outputPath",
-        "path",
-        "rightsPath",
-        "srcDir",
-        "subsystemPath",
-        "templatePath",
-        "targetPath",
-    ]
+fn native_source_path_args(tool: ToolSpec) -> &'static [&'static str] {
+    match tool.handler {
+        ToolHandler::NativeOperation { operation, .. } => native_operation_descriptor(operation)
+            .map(|descriptor| descriptor.source_path_args)
+            .unwrap_or(&[]),
+        _ => &[],
+    }
 }
 
 fn resolve_read_path(cwd: &Path, raw_path: &str) -> PathBuf {
@@ -888,20 +841,9 @@ fn native_args_for(_operation: &str) -> &'static [&'static str] {
 
 fn required_args(tool: &ToolSpec) -> Vec<&'static str> {
     match tool.handler {
-        ToolHandler::NativeOperation { operation, .. } => match operation {
-            "cf-info" | "cf-validate" => vec!["ConfigPath"],
-            "cfe-diff" => vec!["ExtensionPath", "ConfigPath"],
-            "cfe-validate" => vec!["ExtensionPath"],
-            "meta-info" | "meta-validate" | "meta-edit" => vec!["ObjectPath"],
-            "help-add" => vec!["ObjectName"],
-            "form-info" | "form-validate" | "form-edit" => vec!["FormPath"],
-            "interface-validate" | "interface-edit" => vec!["CIPath"],
-            "subsystem-info" | "subsystem-validate" | "subsystem-edit" => vec!["SubsystemPath"],
-            "skd-info" | "skd-validate" | "skd-edit" => vec!["TemplatePath"],
-            "mxl-info" | "mxl-validate" | "mxl-decompile" => vec!["TemplatePath"],
-            "role-info" | "role-validate" => vec!["RightsPath"],
-            _ => Vec::new(),
-        },
+        ToolHandler::NativeOperation { operation, .. } => native_operation_descriptor(operation)
+            .map(|descriptor| descriptor.required_args.to_vec())
+            .unwrap_or_default(),
         ToolHandler::StandardsAdapter {
             operation: "search",
             ..

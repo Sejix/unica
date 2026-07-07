@@ -39,6 +39,18 @@ def sha256(path: Path) -> str:
     return h.hexdigest()
 
 
+def verify_asset_checksum(path: Path, asset: dict, *, tool_name: str, target: str) -> None:
+    expected = asset.get("sha256")
+    if not expected:
+        raise SystemExit(f"{tool_name} {target} asset {asset.get('assetName')} is missing sha256 in tools lock")
+    actual = sha256(path)
+    if actual != expected:
+        raise SystemExit(
+            f"{tool_name} {target} asset checksum mismatch for {asset.get('assetName')}: "
+            f"{actual} != {expected}"
+        )
+
+
 def download(url: str, dest: Path) -> None:
     dest.parent.mkdir(parents=True, exist_ok=True)
     print(f"download {url}", flush=True)
@@ -61,12 +73,43 @@ def extract_v8_runner(archive: Path, binary_name: str, dest: Path) -> None:
     extract_dir = archive.parent / f"{archive.name}.extract"
     shutil.rmtree(extract_dir, ignore_errors=True)
     extract_dir.mkdir(parents=True)
+    extract_root = extract_dir.resolve()
+
+    def safe_member_path(member_name: str) -> Path:
+        target = (extract_dir / member_name).resolve()
+        try:
+            target.relative_to(extract_root)
+        except ValueError as exc:
+            raise SystemExit(f"unsafe archive member in {archive}: {member_name}") from exc
+        return target
+
     if archive.suffix == ".zip":
         with zipfile.ZipFile(archive) as zf:
-            zf.extractall(extract_dir)
+            for member in zf.infolist():
+                target = safe_member_path(member.filename)
+                if member.is_dir():
+                    target.mkdir(parents=True, exist_ok=True)
+                    continue
+                target.parent.mkdir(parents=True, exist_ok=True)
+                with zf.open(member) as source, target.open("wb") as out:
+                    shutil.copyfileobj(source, out)
     else:
         with tarfile.open(archive) as tf:
-            tf.extractall(extract_dir)
+            for member in tf.getmembers():
+                target = safe_member_path(member.name)
+                if member.issym() or member.islnk():
+                    raise SystemExit(f"unsafe archive member in {archive}: {member.name}")
+                if member.isdir():
+                    target.mkdir(parents=True, exist_ok=True)
+                    continue
+                if not member.isfile():
+                    continue
+                target.parent.mkdir(parents=True, exist_ok=True)
+                source = tf.extractfile(member)
+                if source is None:
+                    continue
+                with source, target.open("wb") as out:
+                    shutil.copyfileobj(source, out)
 
     matches = [p for p in extract_dir.rglob(binary_name) if p.is_file()]
     if not matches:
@@ -356,6 +399,7 @@ def main() -> None:
             url = f"{tool['repository']}/releases/download/{tool['sourceTag']}/{asset['assetName']}"
             downloaded = downloads_dir / asset["assetName"]
             download(url, downloaded)
+            verify_asset_checksum(downloaded, asset, tool_name=tool["name"], target=args.target)
             shutil.copy2(downloaded, dest)
         elif strategy == "archive-release-asset":
             asset = tool["assets"].get(args.target)
@@ -364,6 +408,7 @@ def main() -> None:
             url = f"{tool['repository']}/releases/download/{tool['sourceTag']}/{asset['assetName']}"
             downloaded = downloads_dir / asset["assetName"]
             download(url, downloaded)
+            verify_asset_checksum(downloaded, asset, tool_name=tool["name"], target=args.target)
             extract_v8_runner(downloaded, asset["archiveBinary"], dest)
         elif strategy == "pyinstaller-entrypoint":
             key = (tool["repository"], tool["sourceTag"], tool["sourceCommit"])

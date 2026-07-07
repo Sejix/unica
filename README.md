@@ -71,9 +71,11 @@ codex debug prompt-input 'test'
 
 Этот режим нужен, если вы меняете сам плагин. Git/source marketplace install
 из этого репозитория не является runtime-установкой: skills и metadata могут
-быть видны, но готовых `bin/<target>/` бинарников и generated
-`third-party/manifest.json` в source tree нет. Для рабочего MCP используйте
-release installer или generated marketplace archive.
+быть видны, но готовых `bin/<target>/` бинарников нет. Source tree содержит
+checked-in placeholder `third-party/manifest.json`; generated marketplace archives overwrite
+его manifest-файлом с target-specific бинарниками и
+checksums. Для рабочего MCP используйте release installer или generated
+marketplace archive.
 
 ```sh
 git clone https://github.com/IngvarConsulting/unica.git

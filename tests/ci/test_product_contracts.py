@@ -18,6 +18,43 @@ def load_contract_module():
 
 
 class ProductContractTests(unittest.TestCase):
+    def test_ai_entrypoints_document_source_of_truth_and_ignored_corpus(self) -> None:
+        repo_root = Path(__file__).resolve().parents[2]
+        entrypoint = repo_root / "AGENTS.md"
+
+        text = entrypoint.read_text(encoding="utf-8")
+
+        self.assertIn("code/tests/package metadata > spec > historical plans", text)
+        for ignored in ["docs/research", "docs/its", "target", ".build", "dist"]:
+            with self.subTest(ignored=ignored):
+                self.assertIn(ignored, text)
+
+    def test_readme_describes_checked_in_source_manifest_placeholder(self) -> None:
+        repo_root = Path(__file__).resolve().parents[2]
+        readme = (repo_root / "README.md").read_text(encoding="utf-8")
+
+        self.assertIn("checked-in placeholder `third-party/manifest.json`", readme)
+        self.assertIn("generated marketplace archives overwrite", readme)
+
+    def test_superpowers_plans_are_marked_historical(self) -> None:
+        repo_root = Path(__file__).resolve().parents[2]
+        plan_dir = repo_root / "docs" / "superpowers" / "plans"
+
+        for plan in plan_dir.glob("*.md"):
+            with self.subTest(plan=plan.name):
+                head = "\n".join(plan.read_text(encoding="utf-8").splitlines()[:8])
+                self.assertIn("Historical", head)
+
+    def test_script_backed_skill_exceptions_are_documented_by_adr(self) -> None:
+        repo_root = Path(__file__).resolve().parents[2]
+        adr = repo_root / "spec" / "decisions" / "0007-script-backed-utility-skill-exceptions.md"
+
+        text = adr.read_text(encoding="utf-8")
+
+        self.assertIn("web-test", text)
+        self.assertIn("img-grid", text)
+        self.assertIn("permanent local-tool exception", text)
+
     def write_executable(self, tools_dir: Path, name: str, body: str) -> None:
         path = tools_dir / name
         path.write_text(body, encoding="utf-8")

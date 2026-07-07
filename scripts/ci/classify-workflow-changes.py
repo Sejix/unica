@@ -19,11 +19,16 @@ RELEASE_ARTIFACT_PATHS = {
     "plugins/unica/third-party/tools.lock.json",
     "plugins/unica/third-party/manifest.json",
     "scripts/ci/build-unica-tools.py",
+    "scripts/ci/check-tool-contracts.py",
     "scripts/ci/release-assessment.py",
     "scripts/ci/package-unica-plugin.py",
     "scripts/install-unica.sh",
     "scripts/install-unica.ps1",
 }
+
+RELEASE_ARTIFACT_PREFIXES = (
+    "crates/unica-coder/",
+)
 
 
 def normalize_path(path: str) -> str:
@@ -34,7 +39,13 @@ def normalize_path(path: str) -> str:
 
 
 def needs_release_artifacts(paths: Iterable[str]) -> bool:
-    return any(normalize_path(path) in RELEASE_ARTIFACT_PATHS for path in paths)
+    for path in paths:
+        normalized = normalize_path(path)
+        if normalized in RELEASE_ARTIFACT_PATHS:
+            return True
+        if normalized.startswith(RELEASE_ARTIFACT_PREFIXES):
+            return True
+    return False
 
 
 def classify_stdin(stdin: TextIO) -> str:

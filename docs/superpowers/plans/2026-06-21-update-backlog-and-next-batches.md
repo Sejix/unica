@@ -1,5 +1,7 @@
 # Unica Update Backlog And Next Batches Implementation Plan
 
+> Historical: this plan is preserved as execution context. Current source of truth is code/tests/package metadata, then `spec/`, not this plan.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Bring the product and donor-skill update backlog current as of 2026-06-21, then execute the remaining updates in small, independently testable batches.

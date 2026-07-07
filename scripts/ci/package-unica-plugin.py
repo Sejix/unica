@@ -7,6 +7,7 @@ import argparse
 import hashlib
 import json
 import shutil
+import subprocess
 import tarfile
 import zipfile
 from datetime import datetime, timezone
@@ -35,6 +36,48 @@ def copy_binary_tree(src: Path, dst: Path) -> None:
     for path in dst.rglob("*"):
         if path.is_file():
             path.chmod(path.stat().st_mode | 0o111)
+
+
+def git_tracked_plugin_files(repo_root: Path, plugin_src: Path) -> list[str]:
+    rel_plugin = plugin_src.relative_to(repo_root).as_posix()
+    result = subprocess.run(
+        ["git", "-C", str(repo_root), "ls-files", "-z", "--", rel_plugin],
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        check=True,
+    )
+    prefix = f"{rel_plugin}/"
+    return [
+        path[len(prefix) :]
+        for path in result.stdout.decode("utf-8").split("\0")
+        if path.startswith(prefix)
+    ]
+
+
+def validate_tracked_plugin_source_path(rel_path: Path) -> None:
+    if rel_path.is_absolute() or ".." in rel_path.parts:
+        raise SystemExit(f"git tracked plugin file escapes plugin root: {rel_path.as_posix()}")
+    ignored_parts = set(rel_path.parts) & SOURCE_PACKAGE_IGNORES
+    if ignored_parts:
+        raise SystemExit(
+            f"source package path is generated or ignored: {rel_path.as_posix()}"
+        )
+
+
+def copy_tracked_plugin_source(repo_root: Path, plugin_src: Path, dst: Path) -> None:
+    if dst.exists():
+        shutil.rmtree(dst)
+    dst.mkdir(parents=True)
+
+    for rel in git_tracked_plugin_files(repo_root, plugin_src):
+        rel_path = Path(rel)
+        validate_tracked_plugin_source_path(rel_path)
+        source = plugin_src / rel_path
+        if source.is_symlink():
+            raise SystemExit(f"tracked plugin source symlink is not allowed: {rel_path.as_posix()}")
+        target = dst / rel_path
+        target.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(source, target)
 
 
 def sha256(path: Path) -> str:
@@ -279,7 +322,7 @@ def main() -> None:
     shutil.rmtree(marketplace_dir, ignore_errors=True)
     marketplace_dir.mkdir(parents=True, exist_ok=True)
     plugin_dst = marketplace_dir / "plugins" / "unica"
-    copytree(plugin_src, plugin_dst, ignore=SOURCE_PACKAGE_IGNORES)
+    copy_tracked_plugin_source(repo_root, plugin_src, plugin_dst)
 
     marketplace_dst = marketplace_dir / ".agents" / "plugins"
     marketplace_dst.mkdir(parents=True, exist_ok=True)

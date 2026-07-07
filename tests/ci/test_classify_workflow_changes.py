@@ -26,10 +26,14 @@ class ClassifyWorkflowChangesTests(unittest.TestCase):
             "Cargo.toml",
             "Cargo.lock",
             "crates/unica-coder/Cargo.toml",
+            "crates/unica-coder/build.rs",
+            "crates/unica-coder/src/application/mod.rs",
+            "crates/unica-coder/src/infrastructure/internal_adapters.rs",
             "plugins/unica/.codex-plugin/plugin.json",
             "plugins/unica/.mcp.json",
             "plugins/unica/third-party/tools.lock.json",
             "plugins/unica/third-party/manifest.json",
+            "scripts/ci/check-tool-contracts.py",
             "scripts/ci/release-assessment.py",
             "scripts/ci/build-unica-tools.py",
             "scripts/ci/package-unica-plugin.py",
@@ -45,7 +49,6 @@ class ClassifyWorkflowChangesTests(unittest.TestCase):
         module = load_classifier_module()
 
         source_only_paths = [
-            "crates/unica-coder/src/application.rs",
             "plugins/unica/skills/meta-compile/SKILL.md",
             "plugins/unica/references/tooling/internal-package.md",
             "spec/architecture/invariants.md",

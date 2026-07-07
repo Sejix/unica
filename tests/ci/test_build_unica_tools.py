@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import importlib.util
+import io
+import tarfile
 import tempfile
 import unittest
 from pathlib import Path
@@ -18,6 +20,40 @@ def load_build_module():
 
 
 class BuildPythonEntrypointTests(unittest.TestCase):
+    def test_release_asset_checksum_mismatch_fails_before_use(self) -> None:
+        module = load_build_module()
+
+        with tempfile.TemporaryDirectory() as tmp:
+            downloaded = Path(tmp) / "asset.bin"
+            downloaded.write_bytes(b"unexpected")
+
+            with self.assertRaisesRegex(SystemExit, "checksum mismatch"):
+                module.verify_asset_checksum(
+                    downloaded,
+                    {"assetName": "asset.bin", "sha256": "0" * 64},
+                    tool_name="v8-runner",
+                    target="linux-x64",
+                )
+
+    def test_archive_extraction_rejects_path_traversal_members(self) -> None:
+        module = load_build_module()
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            archive = root / "v8-runner.tar.gz"
+            outside = root / "escape"
+            payload = b"owned"
+
+            with tarfile.open(archive, "w:gz") as tf:
+                info = tarfile.TarInfo("../escape")
+                info.size = len(payload)
+                tf.addfile(info, io.BytesIO(payload))
+
+            with self.assertRaisesRegex(SystemExit, "unsafe archive member"):
+                module.extract_v8_runner(archive, "v8-runner", root / "v8-runner")
+
+            self.assertFalse(outside.exists())
+
     def test_pyinstaller_uses_generated_python_stub_for_entrypoint(self) -> None:
         module = load_build_module()
 

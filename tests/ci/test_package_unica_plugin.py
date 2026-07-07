@@ -318,6 +318,101 @@ class PackageUnicaPluginTests(unittest.TestCase):
                     },
                 )
 
+    def test_plugin_source_copy_uses_git_tracked_files_only(self) -> None:
+        module = load_package_module()
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            repo_root = root / "repo"
+            plugin_src = repo_root / "plugins" / "unica"
+            plugin_src.mkdir(parents=True)
+            (plugin_src / ".mcp.json").write_text("{}", encoding="utf-8")
+            (plugin_src / "skills" / "web-test").mkdir(parents=True)
+            (plugin_src / "skills" / "web-test" / "SKILL.md").write_text("tracked", encoding="utf-8")
+            (plugin_src / "skills" / "web-test" / "scripts" / "node_modules" / "pkg").mkdir(parents=True)
+            (plugin_src / "skills" / "web-test" / "scripts" / "node_modules" / "pkg" / "index.js").write_text(
+                "untracked dependency",
+                encoding="utf-8",
+            )
+            (plugin_src / "skills" / "web-test" / ".browser-session.json").write_text("{}", encoding="utf-8")
+            (plugin_src / "skills" / "web-test" / "screenshot.png").write_bytes(b"png")
+            (plugin_src / "skills" / "web-test" / "trace.mp4").write_bytes(b"mp4")
+
+            dest = root / "dest"
+            with patch.object(
+                module,
+                "git_tracked_plugin_files",
+                return_value=[".mcp.json", "skills/web-test/SKILL.md"],
+            ):
+                module.copy_tracked_plugin_source(repo_root, plugin_src, dest)
+
+            self.assertTrue((dest / ".mcp.json").is_file())
+            self.assertTrue((dest / "skills" / "web-test" / "SKILL.md").is_file())
+            self.assertFalse((dest / "skills" / "web-test" / "scripts" / "node_modules").exists())
+            self.assertFalse((dest / "skills" / "web-test" / ".browser-session.json").exists())
+            self.assertFalse((dest / "skills" / "web-test" / "screenshot.png").exists())
+            self.assertFalse((dest / "skills" / "web-test" / "trace.mp4").exists())
+
+    def test_plugin_source_copy_rejects_tracked_source_bin(self) -> None:
+        module = load_package_module()
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            repo_root = root / "repo"
+            plugin_src = repo_root / "plugins" / "unica"
+            source_bin = plugin_src / "bin" / "win-x64" / "run-tool.ps1"
+            source_bin.parent.mkdir(parents=True)
+            source_bin.write_text("stale wrapper", encoding="utf-8")
+
+            with patch.object(
+                module,
+                "git_tracked_plugin_files",
+                return_value=["bin/win-x64/run-tool.ps1"],
+            ):
+                with self.assertRaisesRegex(SystemExit, "source package path is generated"):
+                    module.copy_tracked_plugin_source(repo_root, plugin_src, root / "dest")
+
+    def test_plugin_source_copy_rejects_tracked_nested_ignored_dir(self) -> None:
+        module = load_package_module()
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            repo_root = root / "repo"
+            plugin_src = repo_root / "plugins" / "unica"
+            generated = plugin_src / "skills" / "web-test" / "__pycache__" / "script.pyc"
+            generated.parent.mkdir(parents=True)
+            generated.write_bytes(b"pyc")
+
+            with patch.object(
+                module,
+                "git_tracked_plugin_files",
+                return_value=["skills/web-test/__pycache__/script.pyc"],
+            ):
+                with self.assertRaisesRegex(SystemExit, "source package path is generated"):
+                    module.copy_tracked_plugin_source(repo_root, plugin_src, root / "dest")
+
+    @unittest.skipIf(os.name == "nt" or not hasattr(os, "symlink"), "symlink validation is POSIX-only")
+    def test_plugin_source_copy_rejects_tracked_symlink(self) -> None:
+        module = load_package_module()
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            repo_root = root / "repo"
+            plugin_src = repo_root / "plugins" / "unica"
+            outside = root / "outside-secret.txt"
+            link = plugin_src / "skills" / "web-test" / "leak.txt"
+            link.parent.mkdir(parents=True)
+            outside.write_text("secret", encoding="utf-8")
+            os.symlink(outside, link)
+
+            with patch.object(
+                module,
+                "git_tracked_plugin_files",
+                return_value=["skills/web-test/leak.txt"],
+            ):
+                with self.assertRaisesRegex(SystemExit, "symlink"):
+                    module.copy_tracked_plugin_source(repo_root, plugin_src, root / "dest")
+
     def write_bundle(self, root: Path, target: str, module) -> Path:
         bundle = root / f"unica-tools-{target}"
         bin_dir = bundle / "bin" / target
