@@ -270,13 +270,36 @@ impl<'a> RuntimeAdapter<'a> {
         }
 
         let process_timeout = None;
-        let output = self.runner.run(&ProcessCommand {
+        let process_command = ProcessCommand {
             program: bundled_tool.program.clone(),
             args: execution_args,
             cwd: context.cwd.clone(),
             timeout: process_timeout,
-        })?;
+        };
+        let output = match self.runner.run(&process_command) {
+            Ok(output) => output,
+            Err(error) => {
+                let error = redact_sensitive_text(&error);
+                return Ok(AdapterOutcome {
+                    ok: false,
+                    summary: format!(
+                        "{tool_name} failed through internal v8-runner runtime adapter"
+                    ),
+                    changes: Vec::new(),
+                    warnings: vec![
+                        "internal v8-runner runtime adapter failed to spawn process".to_string()
+                    ],
+                    errors: vec![error.clone()],
+                    artifacts: Vec::new(),
+                    stdout: None,
+                    stderr: Some(format!("{error}\n")),
+                    command: Some(command),
+                });
+            }
+        };
         let ok = output.status_success;
+        let stdout = redact_sensitive_text(&output.stdout);
+        let stderr = redact_sensitive_text(&output.stderr);
         Ok(AdapterOutcome {
             ok,
             summary: if ok {
@@ -284,7 +307,7 @@ impl<'a> RuntimeAdapter<'a> {
             } else {
                 format!("{tool_name} failed through internal v8-runner runtime adapter")
             },
-            changes: if mutating {
+            changes: if mutating && ok {
                 vec!["internal v8-runner runtime adapter executed".to_string()]
             } else {
                 Vec::new()
@@ -301,14 +324,19 @@ impl<'a> RuntimeAdapter<'a> {
             },
             errors: if ok {
                 Vec::new()
-            } else if output.stderr.trim().is_empty() && output.timed_out {
+            } else if stderr.trim().is_empty() && output.timed_out {
                 vec![process_timeout_error("v8-runner runtime", process_timeout)]
+            } else if stderr.trim().is_empty() {
+                vec![format!(
+                    "internal v8-runner runtime adapter exited with status {}",
+                    output.status
+                )]
             } else {
-                vec![output.stderr.trim().to_string()]
+                vec![stderr.trim().to_string()]
             },
             artifacts: Vec::new(),
-            stdout: Some(output.stdout),
-            stderr: Some(output.stderr),
+            stdout: Some(stdout),
+            stderr: Some(stderr),
             command: Some(command),
         })
     }
@@ -618,6 +646,59 @@ fn process_timeout_error(label: &str, timeout: Option<Duration>) -> String {
         ),
         None => format!("internal {label} adapter timed out"),
     }
+}
+
+fn redact_sensitive_text(text: &str) -> String {
+    let chars = text.chars().collect::<Vec<_>>();
+    let mut output = String::with_capacity(text.len());
+    let mut index = 0;
+    while index < chars.len() {
+        if secret_key_char(chars[index]) {
+            let key_start = index;
+            index += 1;
+            while index < chars.len() && secret_key_char(chars[index]) {
+                index += 1;
+            }
+            let key_end = index;
+            let mut separator = index;
+            while separator < chars.len() && chars[separator].is_whitespace() {
+                separator += 1;
+            }
+            if separator < chars.len() && matches!(chars[separator], '=' | ':') {
+                let mut value_start = separator + 1;
+                while value_start < chars.len() && chars[value_start].is_whitespace() {
+                    value_start += 1;
+                }
+                let key = chars[key_start..key_end].iter().collect::<String>();
+                if is_secret_key(&key) {
+                    for ch in &chars[key_start..value_start] {
+                        output.push(*ch);
+                    }
+                    output.push_str("<redacted>");
+                    index = value_start;
+                    while index < chars.len() && !secret_value_delimiter(chars[index]) {
+                        index += 1;
+                    }
+                    continue;
+                }
+            }
+            for ch in &chars[key_start..key_end] {
+                output.push(*ch);
+            }
+            continue;
+        }
+        output.push(chars[index]);
+        index += 1;
+    }
+    output
+}
+
+fn secret_key_char(ch: char) -> bool {
+    ch.is_ascii_alphanumeric() || matches!(ch, '_' | '-')
+}
+
+fn secret_value_delimiter(ch: char) -> bool {
+    matches!(ch, ';' | '&' | ',' | '\n' | '\r' | '}')
 }
 
 fn search_rlm_index(
@@ -2503,6 +2584,7 @@ fn string_arg(args: &Map<String, Value>, key: &str, redact: bool) -> Option<Stri
 fn is_secret_key(key: &str) -> bool {
     let key = key.to_ascii_lowercase();
     key == "connection"
+        || key == "pwd"
         || key.contains("password")
         || key.contains("token")
         || key.contains("secret")
@@ -3786,6 +3868,107 @@ mod tests {
     }
 
     #[test]
+    fn runtime_adapter_redacts_non_zero_process_output() {
+        let context = temp_context("runtime-non-zero-diagnostics");
+        let runner = FakeProcessRunner {
+            output: ProcessOutput {
+                status_success: false,
+                status: "exit status: 1".to_string(),
+                stdout:
+                    "prelude that should not matter\nstarted build\nUsr=admin;Pwd=stdout-secret\n"
+                        .to_string(),
+                stderr: "failed to load configuration: Pwd=stderr-secret\n".to_string(),
+                timed_out: false,
+            },
+        };
+        let mut args = Map::new();
+        args.insert("operation".to_string(), json!("build"));
+        args.insert("sourceSet".to_string(), json!("main"));
+
+        let outcome = RuntimeAdapter::with_runner(&runner)
+            .invoke("unica.runtime.execute", &args, &context, false, true)
+            .unwrap();
+
+        assert!(!outcome.ok);
+        assert!(outcome
+            .command
+            .as_ref()
+            .unwrap()
+            .join(" ")
+            .contains("build --source-set main"));
+        assert!(outcome.stdout.as_deref().unwrap().contains("started build"));
+        assert!(outcome
+            .stderr
+            .as_deref()
+            .unwrap()
+            .contains("failed to load configuration"));
+        let serialized = serde_json::to_string(&outcome).unwrap();
+        assert!(!serialized.contains("stdout-secret"));
+        assert!(!serialized.contains("stderr-secret"));
+        cleanup_context(&context);
+    }
+
+    #[test]
+    fn runtime_adapter_reports_timeout_failure_without_wrapper_budget() {
+        let context = temp_context("runtime-timeout-diagnostics");
+        let runner = FakeProcessRunner {
+            output: ProcessOutput {
+                status_success: false,
+                status: "timeout".to_string(),
+                stdout: "started loading configuration...\n".to_string(),
+                stderr: String::new(),
+                timed_out: true,
+            },
+        };
+        let mut args = Map::new();
+        args.insert("operation".to_string(), json!("load"));
+        args.insert("path".to_string(), json!("build/config.cf"));
+
+        let outcome = RuntimeAdapter::with_runner(&runner)
+            .invoke("unica.runtime.execute", &args, &context, false, true)
+            .unwrap();
+
+        assert!(!outcome.ok);
+        assert!(outcome
+            .warnings
+            .iter()
+            .any(|warning| warning.contains("timed out")));
+        assert!(outcome
+            .stdout
+            .as_deref()
+            .unwrap()
+            .contains("started loading configuration"));
+        assert!(outcome.errors.iter().all(|error| !error.contains("120")));
+        cleanup_context(&context);
+    }
+
+    #[test]
+    fn runtime_adapter_returns_failure_outcome_for_spawn_failure() {
+        let context = temp_context("runtime-spawn-failure-diagnostics");
+        let runner = FailingProcessRunner {
+            error: "failed to execute process: no such file or directory; apiToken=token-secret"
+                .to_string(),
+        };
+        let mut args = Map::new();
+        args.insert("operation".to_string(), json!("build"));
+
+        let outcome = RuntimeAdapter::with_runner(&runner)
+            .invoke("unica.runtime.execute", &args, &context, false, true)
+            .unwrap();
+
+        assert!(!outcome.ok);
+        assert!(outcome.summary.contains("failed"));
+        assert!(outcome
+            .errors
+            .iter()
+            .any(|error| error.contains("failed to execute process")));
+        assert!(!serde_json::to_string(&outcome)
+            .unwrap()
+            .contains("token-secret"));
+        cleanup_context(&context);
+    }
+
+    #[test]
     fn system_process_runner_does_not_timeout_when_timeout_is_none() {
         let output = SYSTEM_PROCESS_RUNNER
             .run(&ProcessCommand {
@@ -3878,6 +4061,16 @@ mod tests {
     impl ProcessRunner for FakeProcessRunner {
         fn run(&self, _command: &ProcessCommand) -> Result<ProcessOutput, String> {
             Ok(self.output.clone())
+        }
+    }
+
+    struct FailingProcessRunner {
+        error: String,
+    }
+
+    impl ProcessRunner for FailingProcessRunner {
+        fn run(&self, _command: &ProcessCommand) -> Result<ProcessOutput, String> {
+            Err(self.error.clone())
         }
     }
 
