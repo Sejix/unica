@@ -210,6 +210,49 @@ mod edit_tests {
     }
 
     #[test]
+    fn edit_meta_modify_property_comment_replaces_self_closing_object_comment() {
+        let context = temp_context("modify-property-comment-self-closing");
+        let object_path = context.cwd.join("Catalogs").join("SampleContracts.xml");
+        write_file(&object_path, &sample_catalog_xml());
+
+        let outcome = edit_meta(
+            &meta_edit_args(&object_path, "modify-property", "Comment=TEST-COMMENT"),
+            &context,
+        );
+
+        assert!(outcome.ok, "{:?}", outcome.errors);
+        let updated = fs::read_to_string(&object_path).unwrap();
+        assert!(updated.contains("<Comment>TEST-COMMENT</Comment>"));
+        assert_eq!(updated.matches("<Comment").count(), 1, "{updated}");
+        assert!(!updated.contains("<Comment/>"), "{updated}");
+        Document::parse(updated.trim_start_matches('\u{feff}')).unwrap();
+
+        let _ = fs::remove_dir_all(&context.cwd);
+    }
+
+    #[test]
+    fn edit_meta_modify_property_comment_replaces_existing_object_comment() {
+        let context = temp_context("modify-property-comment-existing");
+        let object_path = context.cwd.join("Catalogs").join("SampleContracts.xml");
+        let xml = sample_catalog_xml().replace("<Comment/>", "<Comment>OLD</Comment>");
+        write_file(&object_path, &xml);
+
+        let outcome = edit_meta(
+            &meta_edit_args(&object_path, "modify-property", "Comment=TEST-COMMENT"),
+            &context,
+        );
+
+        assert!(outcome.ok, "{:?}", outcome.errors);
+        let updated = fs::read_to_string(&object_path).unwrap();
+        assert!(updated.contains("<Comment>TEST-COMMENT</Comment>"));
+        assert!(!updated.contains("<Comment>OLD</Comment>"));
+        assert_eq!(updated.matches("<Comment").count(), 1, "{updated}");
+        Document::parse(updated.trim_start_matches('\u{feff}')).unwrap();
+
+        let _ = fs::remove_dir_all(&context.cwd);
+    }
+
+    #[test]
     fn edit_meta_adds_register_record_to_document() {
         let context = temp_context("add-register-record");
         let object_path = context.cwd.join("Documents").join("SampleShipment.xml");
@@ -6323,9 +6366,7 @@ pub(crate) fn emit_meta_catalog_properties(
     obj_name: &str,
     synonym: &str,
 ) {
-    lines.push(format!("{indent}<Name>{}</Name>", escape_xml(obj_name)));
-    emit_meta_mltext(lines, indent, "Synonym", synonym);
-    lines.push(format!("{indent}<Comment/>"));
+    emit_meta_base_properties(lines, indent, defn, obj_name, synonym);
     let hierarchical = defn.get("hierarchical").and_then(Value::as_bool) == Some(true);
     lines.push(format!(
         "{indent}<Hierarchical>{hierarchical}</Hierarchical>"
@@ -10113,12 +10154,25 @@ pub(crate) fn meta_edit_set_scalar_property(
     key: &str,
     raw_value: &str,
 ) -> Result<(), String> {
-    let normalized = normalize_meta_edit_property_value(key, raw_value);
-    if replace_first_xml_element_text(xml_text, key, &normalized) {
-        Ok(())
-    } else {
-        insert_meta_property_before_child_objects(xml_text, key, &normalized)
+    let key = key.trim();
+    if key.is_empty() {
+        return Err("modify-property requires non-empty key".to_string());
     }
+    let normalized = normalize_meta_edit_property_value(key, raw_value);
+    let doc = Document::parse(xml_text.trim_start_matches('\u{feff}'))
+        .map_err(|err| format!("XML parse error: {err}"))?;
+    let object = meta_edit_object_node(&doc)?;
+    let properties = meta_info_child(object, "Properties")
+        .ok_or_else(|| "Object has no Properties".to_string())?;
+    let range = properties.range();
+    drop(doc);
+
+    let mut properties_text = xml_text[range.clone()].to_string();
+    let child_indent = meta_edit_property_child_indent(&properties_text);
+    let replacement = format!("{child_indent}<{key}>{}</{key}>", escape_xml(&normalized));
+    meta_edit_replace_or_insert_property(&mut properties_text, key, &replacement, &child_indent)?;
+    xml_text.replace_range(range, &properties_text);
+    Ok(())
 }
 
 pub(crate) fn meta_edit_add_child_value(
