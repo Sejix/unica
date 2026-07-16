@@ -3550,7 +3550,11 @@ pub(crate) fn edit_form(args: &Map<String, Value>, context: &WorkspaceContext) -
         if xml_text.starts_with('\u{feff}') {
             xml_text = xml_text.trim_start_matches('\u{feff}').to_string();
         }
-        Document::parse(&xml_text).map_err(|err| format!("[ERROR] XML parse error: {err}"))?;
+        let form_root_start = Document::parse(&xml_text)
+            .map_err(|err| format!("[ERROR] XML parse error: {err}"))?
+            .root_element()
+            .range()
+            .start;
 
         let form_name = form_edit_form_name(&form_path);
         let mut elem_ids = FormIdAllocator {
@@ -3580,6 +3584,7 @@ pub(crate) fn edit_form(args: &Map<String, Value>, context: &WorkspaceContext) -
         }
 
         let mut added_elements = Vec::<String>::new();
+        let mut emitted_fragments = String::new();
         let mut companion_count = 0usize;
         if let Some(elements) = defn.get("elements").and_then(Value::as_array) {
             if !elements.is_empty() {
@@ -3599,6 +3604,7 @@ pub(crate) fn edit_form(args: &Map<String, Value>, context: &WorkspaceContext) -
                         added_elements.push(summary);
                     }
                 }
+                emitted_fragments.push_str(&lines.join("\n"));
                 form_edit_insert_lines_into_target(&mut xml_text, insert_target, &lines)?;
                 companion_count = elem_ids.next.saturating_sub(start + added_elements.len());
             }
@@ -3624,6 +3630,7 @@ pub(crate) fn edit_form(args: &Map<String, Value>, context: &WorkspaceContext) -
                         .unwrap_or("(no type)");
                     added_attrs.push(format!("  + {name}: {type_name} (id={id})"));
                 }
+                emitted_fragments.push_str(&lines.join("\n"));
                 form_edit_insert_section_items(&mut xml_text, "Attributes", &lines)?;
             }
         }
@@ -3649,6 +3656,7 @@ pub(crate) fn edit_form(args: &Map<String, Value>, context: &WorkspaceContext) -
                         .unwrap_or_default();
                     added_cmds.push(format!("  + {name}{action} (id={id})"));
                 }
+                emitted_fragments.push_str(&lines.join("\n"));
                 form_edit_insert_section_items(&mut xml_text, "Commands", &lines)?;
             }
         }
@@ -3657,7 +3665,7 @@ pub(crate) fn edit_form(args: &Map<String, Value>, context: &WorkspaceContext) -
         if !xml_text.ends_with('\n') {
             xml_text.push('\n');
         }
-        form_edit_ensure_emitted_namespaces(&mut xml_text)?;
+        form_edit_ensure_emitted_namespaces(&mut xml_text, form_root_start, &emitted_fragments)?;
         Document::parse(&xml_text).map_err(|err| format!("[ERROR] XML parse error: {err}"))?;
         write_utf8_bom(&form_path, &xml_text)?;
 
@@ -4239,7 +4247,7 @@ pub(crate) fn form_edit_insert_child_items_into_element(
     if opening_tag.trim_end().ends_with("/>") {
         let relative_pos = opening_tag
             .rfind("/>")
-            .expect("self-closing opening tag checked above");
+            .ok_or_else(|| format!("Self-closing <{tag}> tag has no '/>' terminator"))?;
         let pos = range.start + relative_pos;
         xml_text.replace_range(
             pos..pos + 2,
@@ -4284,33 +4292,22 @@ pub(crate) fn form_edit_opening_tag_end(text: &str, start: usize) -> Option<usiz
     None
 }
 
-pub(crate) fn form_edit_ensure_emitted_namespaces(xml_text: &mut String) -> Result<(), String> {
-    let Some(root_start) = xml_text.find("<Form") else {
+pub(crate) fn form_edit_ensure_emitted_namespaces(
+    xml_text: &mut String,
+    root_start: usize,
+    emitted_fragments: &str,
+) -> Result<(), String> {
+    if emitted_fragments.is_empty() {
         return Ok(());
-    };
+    }
     let root_open_end = form_edit_opening_tag_end(xml_text, root_start)
         .ok_or_else(|| "No opening <Form> tag found in form".to_string())?;
     let additions = {
         let root_opening = &xml_text[root_start..=root_open_end];
         let mut additions = String::new();
-        for (prefix, uri, needed) in [
-            (
-                "v8",
-                FORM_V8_NS,
-                xml_text.contains("<v8:") || xml_text.contains("</v8:"),
-            ),
-            (
-                "xr",
-                "http://v8.1c.ru/8.3/xcf/readable",
-                xml_text.contains("<xr:") || xml_text.contains("</xr:"),
-            ),
-            (
-                "xsi",
-                "http://www.w3.org/2001/XMLSchema-instance",
-                xml_text.contains("xsi:"),
-            ),
-        ] {
-            if needed && !root_opening.contains(&format!("xmlns:{prefix}=")) {
+        for (prefix, uri) in form_edit_emitter_namespaces() {
+            let needed = emitted_fragments.contains(&format!("{prefix}:"));
+            if needed && !form_edit_opening_tag_declares_namespace(root_opening, prefix) {
                 additions.push_str(&format!(" xmlns:{prefix}=\"{uri}\""));
             }
         }
@@ -4320,6 +4317,31 @@ pub(crate) fn form_edit_ensure_emitted_namespaces(xml_text: &mut String) -> Resu
         xml_text.insert_str(root_open_end, &additions);
     }
     Ok(())
+}
+
+pub(crate) fn form_edit_emitter_namespaces() -> [(&'static str, &'static str); 6] {
+    [
+        ("app", "http://v8.1c.ru/8.2/managed-application/core"),
+        ("cfg", "http://v8.1c.ru/8.1/data/enterprise/current-config"),
+        ("v8", FORM_V8_NS),
+        ("xr", "http://v8.1c.ru/8.3/xcf/readable"),
+        ("xs", "http://www.w3.org/2001/XMLSchema"),
+        ("xsi", "http://www.w3.org/2001/XMLSchema-instance"),
+    ]
+}
+
+pub(crate) fn form_edit_opening_tag_declares_namespace(opening: &str, prefix: &str) -> bool {
+    let needle = format!("xmlns:{prefix}");
+    let mut search_start = 0usize;
+    while let Some(relative_start) = opening[search_start..].find(&needle) {
+        let start = search_start + relative_start + needle.len();
+        let remainder = opening[start..].trim_start();
+        if remainder.starts_with('=') {
+            return true;
+        }
+        search_start = start;
+    }
+    false
 }
 
 pub(crate) fn form_edit_find_section_close(xml_text: &str, section: &str) -> Option<usize> {
@@ -6892,6 +6914,41 @@ mod tests {
         assert!(validate_outcome.ok, "{validate_outcome:?}");
 
         let _ = fs::remove_dir_all(&context.cwd);
+    }
+
+    #[test]
+    fn form_edit_namespace_repair_accepts_whitespace_around_equals() {
+        let mut xml = r#"<Form xmlns="http://v8.1c.ru/8.3/xcf/logform" xmlns:v8 = "http://v8.1c.ru/8.1/data/core"><ChildItems/></Form>"#.to_string();
+        let root_start = Document::parse(&xml).unwrap().root_element().range().start;
+
+        form_edit_ensure_emitted_namespaces(&mut xml, root_start, "<v8:item/>").unwrap();
+
+        assert_eq!(xml.matches("xmlns:v8").count(), 1, "{xml}");
+        Document::parse(&xml).unwrap();
+    }
+
+    #[test]
+    fn form_edit_namespace_repair_uses_parsed_root_after_comment() {
+        let mut xml = r#"<!-- misleading <Form marker --><Form xmlns="http://v8.1c.ru/8.3/xcf/logform"><ChildItems/></Form>"#.to_string();
+        let root_start = Document::parse(&xml).unwrap().root_element().range().start;
+
+        form_edit_ensure_emitted_namespaces(&mut xml, root_start, "<v8:item/>").unwrap();
+
+        assert!(xml.starts_with("<!-- misleading <Form marker -->"), "{xml}");
+        assert!(xml[root_start..].starts_with("<Form "), "{xml}");
+        Document::parse(&xml).unwrap();
+    }
+
+    #[test]
+    fn form_edit_namespace_repair_is_noop_without_emitted_prefixes() {
+        let mut xml =
+            r#"<Form xmlns="http://v8.1c.ru/8.3/xcf/logform"><ChildItems/></Form>"#.to_string();
+        let original = xml.clone();
+        let root_start = Document::parse(&xml).unwrap().root_element().range().start;
+
+        form_edit_ensure_emitted_namespaces(&mut xml, root_start, "<Table/>").unwrap();
+
+        assert_eq!(xml, original);
     }
 
     #[test]
